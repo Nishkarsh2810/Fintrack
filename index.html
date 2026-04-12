@@ -744,22 +744,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 const DB = {
   getAccounts:   () => JSON.parse(localStorage.getItem('ft6_accs')    || '[]'),
   saveAccounts:  (d) => localStorage.setItem('ft6_accs',    JSON.stringify(d)),
-  getTxns: async () => {
-  const snapshot = await db.collection("transactions").get();
-  return snapshot.docs.map(doc => doc.data());
-},
-  saveTxns: async (d) => {
-  localStorage.setItem('ft6_txns', JSON.stringify(d));
-
-  // delete old data from firebase
-  const snapshot = await db.collection("transactions").get();
-  snapshot.forEach(doc => doc.ref.delete());
-
-  // save new data to firebase
-  for (let txn of d) {
-    await db.collection("transactions").add(txn);
-  }
-},
+  getTxns:       () => JSON.parse(localStorage.getItem('ft6_txns')    || '[]'),
+  saveTxns:      (d) => localStorage.setItem('ft6_txns',    JSON.stringify(d)),
   getBudgets:    () => JSON.parse(localStorage.getItem('ft6_budgets') || '{"cats":{}}'),
   saveBudgets:   (d) => localStorage.setItem('ft6_budgets', JSON.stringify(d)),
   getPrefs:      () => JSON.parse(localStorage.getItem('ft6_prefs')   || '{}'),
@@ -960,10 +946,8 @@ function openSheet(which){
   if(which==='bill'){openBillSheet();}
 }
 
-async function openEditSheet(txnId){
-  const txns = await DB.getTxns();
-const txn = txns.find(t => t.id === txnId);
-   if(!txn) return;
+function openEditSheet(txnId){
+  const txn=DB.getTxns().find(t=>t.id===txnId); if(!txn) return;
   editingTxnId=txnId;
   document.getElementById('edit-txn-id').value=txnId;
   document.getElementById('txn-sheet-title').textContent='Edit Transaction';
@@ -1621,23 +1605,6 @@ function toast(msg){
 setTheme(localStorage.getItem('ft6_theme')||'dark');
 updateDateChips();
 renderHome();
-</script>
-   <!-- Firebase scripts -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyDmVFtp6iPccWT2D9VmhKf58UNYMvADdJU",
-    authDomain: "fintrack-4d6bd.firebaseapp.com",
-    projectId: "fintrack-4d6bd",
-    storageBucket: "fintrack-4d6bd.firebasestorage.app",
-    messagingSenderId: "432235383491",
-    appId: "1:432235383491:web:fbe162d58b3067619f3076"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
 </script>
 </body>
 </html>
