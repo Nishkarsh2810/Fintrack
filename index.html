@@ -6,6 +6,9 @@
 <title>FinTrack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 /* ============================================================
    FINTRACK v6 — Credit accounts + Bills system
@@ -427,6 +430,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 }
 input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer;}
 [data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.6);}
+
+/* ── SYNC INDICATOR ── */
+.sync-indicator{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--text3);white-space:nowrap;padding:5px 10px;border-radius:100px;background:var(--surface2);border:1px solid var(--border);transition:all 0.3s;}
+.sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;transition:background 0.3s;}
+.sync-indicator.syncing .sync-dot{background:var(--warn);animation:pulse 1s infinite;}
+.sync-indicator.connected .sync-dot{background:var(--income);}
+.sync-indicator.offline .sync-dot{background:var(--expense);}
+.sync-indicator.syncing{color:var(--warn);}
+.sync-indicator.connected{color:var(--income);}
+.sync-indicator.offline{color:var(--expense);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 </style>
 </head>
 <body>
@@ -453,6 +467,9 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
   <div class="topbar">
     <div class="app-wordmark">Fin<em>Track</em></div>
     <div class="topbar-actions">
+      <div class="sync-indicator offline" id="sync-indicator">
+        <span class="sync-dot"></span><span id="sync-label">Offline</span>
+      </div>
       <div class="date-chip" id="home-date-chip" onclick="openDatePicker()">
         <span class="date-chip-dot"></span><span id="home-date-label"></span>
       </div>
@@ -743,17 +760,17 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
    ============================================================ */
 const DB = {
   getAccounts:   () => JSON.parse(localStorage.getItem('ft6_accs')    || '[]'),
-  saveAccounts:  (d) => localStorage.setItem('ft6_accs',    JSON.stringify(d)),
+  saveAccounts:  (d) => { localStorage.setItem('ft6_accs',    JSON.stringify(d)); FS.push('accounts', d); },
   getTxns:       () => JSON.parse(localStorage.getItem('ft6_txns')    || '[]'),
-  saveTxns:      (d) => localStorage.setItem('ft6_txns',    JSON.stringify(d)),
+  saveTxns:      (d) => { localStorage.setItem('ft6_txns',    JSON.stringify(d)); FS.push('txns', d); },
   getBudgets:    () => JSON.parse(localStorage.getItem('ft6_budgets') || '{"cats":{}}'),
-  saveBudgets:   (d) => localStorage.setItem('ft6_budgets', JSON.stringify(d)),
+  saveBudgets:   (d) => { localStorage.setItem('ft6_budgets', JSON.stringify(d)); FS.push('budgets', d); },
   getPrefs:      () => JSON.parse(localStorage.getItem('ft6_prefs')   || '{}'),
-  savePrefs:     (d) => localStorage.setItem('ft6_prefs',   JSON.stringify(d)),
+  savePrefs:     (d) => { localStorage.setItem('ft6_prefs',   JSON.stringify(d)); FS.push('prefs', d); },
   getCustomCats: () => JSON.parse(localStorage.getItem('ft6_custcats')|| '[]'),
-  saveCustomCats:(d) => localStorage.setItem('ft6_custcats',JSON.stringify(d)),
+  saveCustomCats:(d) => { localStorage.setItem('ft6_custcats',JSON.stringify(d)); FS.push('custcats', d); },
   getBills:      () => JSON.parse(localStorage.getItem('ft6_bills')   || '[]'),
-  saveBills:     (d) => localStorage.setItem('ft6_bills',   JSON.stringify(d)),
+  saveBills:     (d) => { localStorage.setItem('ft6_bills',   JSON.stringify(d)); FS.push('bills', d); },
 
   addAccount(a)      { const l=this.getAccounts(); a.id='a_'+Date.now(); l.push(a); this.saveAccounts(l); return a; },
   delAccount(id)     { this.saveAccounts(this.getAccounts().filter(a=>a.id!==id)); },
@@ -1601,10 +1618,80 @@ function toast(msg){
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400);
 }
 
-/* ── INIT ── */
-setTheme(localStorage.getItem('ft6_theme')||'dark');
+/* ============================================================
+   FIREBASE SYNC LAYER
+   ── FS handles all Firestore reads/writes.
+   ── DB.save* methods call FS.push() automatically.
+   ── App boots by loading Firebase first, then rendering.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDmVFtp6iPccWT2D9VmhKf58UNYMvADdJU",
+  authDomain: "fintrack-4d6bd.firebaseapp.com",
+  projectId: "fintrack-4d6bd",
+  storageBucket: "fintrack-4d6bd.firebasestorage.app",
+  messagingSenderId: "432235383491",
+  appId: "1:432235383491:web:fbe162d58b3067619f3076"
+};
+
+// Initialise Firebase (compat SDK — works with plain <script> tags)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Map: Firestore doc name  →  localStorage key
+const FS_MAP = {
+  accounts : 'ft6_accs',
+  txns     : 'ft6_txns',
+  budgets  : 'ft6_budgets',
+  prefs    : 'ft6_prefs',
+  custcats : 'ft6_custcats',
+  bills    : 'ft6_bills',
+};
+
+/* setSyncStatus — updates the small dot + label in the topbar */
+function setSyncStatus(state) {           // state: 'syncing' | 'connected' | 'offline'
+  const el  = document.getElementById('sync-indicator');
+  const lbl = document.getElementById('sync-label');
+  if (!el || !lbl) return;
+  el.className = 'sync-indicator ' + state;
+  lbl.textContent = state === 'syncing' ? 'Syncing…' : state === 'connected' ? 'Synced' : 'Offline';
+}
+
+const FS = {
+  /* push — write one key's data to Firestore (fire-and-forget) */
+  push(docName, data) {
+    setSyncStatus('syncing');
+    db.collection('appData').doc(docName).set({ payload: JSON.stringify(data) })
+      .then(()  => setSyncStatus('connected'))
+      .catch(()  => setSyncStatus('offline'));
+  },
+
+  /* loadAll — fetch all docs from Firestore and restore localStorage */
+  async loadAll() {
+    setSyncStatus('syncing');
+    try {
+      const snap = await db.collection('appData').get();
+      snap.forEach(doc => {
+        const lsKey = FS_MAP[doc.id];
+        if (lsKey && doc.data().payload) {
+          localStorage.setItem(lsKey, doc.data().payload);
+        }
+      });
+      setSyncStatus('connected');
+    } catch (err) {
+      console.warn('Firebase load failed, using localStorage:', err.message);
+      setSyncStatus('offline');
+    }
+  }
+};
+
+/* ── INIT ── boot order: theme → Firebase load → render ── */
+setTheme(localStorage.getItem('ft6_theme') || 'dark');
 updateDateChips();
-renderHome();
+
+// Load from Firebase first, then render. Falls back to localStorage if offline.
+FS.loadAll().finally(() => {
+  renderHome();
+});
 </script>
 </body>
 </html>
