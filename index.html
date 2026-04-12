@@ -1606,5 +1606,22 @@ setTheme(localStorage.getItem('ft6_theme')||'dark');
 updateDateChips();
 renderHome();
 </script>
+   <!-- Firebase scripts -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDmVFtp6iPccWT2D9VmhKf58UNYMvADdJU",
+    authDomain: "fintrack-4d6bd.firebaseapp.com",
+    projectId: "fintrack-4d6bd",
+    storageBucket: "fintrack-4d6bd.firebasestorage.app",
+    messagingSenderId: "432235383491",
+    appId: "1:432235383491:web:fbe162d58b3067619f3076"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
 </body>
 </html>
