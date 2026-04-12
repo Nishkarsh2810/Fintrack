@@ -744,7 +744,10 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 const DB = {
   getAccounts:   () => JSON.parse(localStorage.getItem('ft6_accs')    || '[]'),
   saveAccounts:  (d) => localStorage.setItem('ft6_accs',    JSON.stringify(d)),
-  getTxns:       () => JSON.parse(localStorage.getItem('ft6_txns')    || '[]'),
+  getTxns: async () => {
+  const snapshot = await db.collection("transactions").get();
+  return snapshot.docs.map(doc => doc.data());
+},
   saveTxns:      (d) => localStorage.setItem('ft6_txns',    JSON.stringify(d)),
   getBudgets:    () => JSON.parse(localStorage.getItem('ft6_budgets') || '{"cats":{}}'),
   saveBudgets:   (d) => localStorage.setItem('ft6_budgets', JSON.stringify(d)),
@@ -946,8 +949,10 @@ function openSheet(which){
   if(which==='bill'){openBillSheet();}
 }
 
-function openEditSheet(txnId){
-  const txn=DB.getTxns().find(t=>t.id===txnId); if(!txn) return;
+async function openEditSheet(txnId){
+  const txns = await DB.getTxns();
+const txn = txns.find(t => t.id === txnId);
+   if(!txn) return;
   editingTxnId=txnId;
   document.getElementById('edit-txn-id').value=txnId;
   document.getElementById('txn-sheet-title').textContent='Edit Transaction';
