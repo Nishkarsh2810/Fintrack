@@ -748,7 +748,18 @@ const DB = {
   const snapshot = await db.collection("transactions").get();
   return snapshot.docs.map(doc => doc.data());
 },
-  saveTxns:      (d) => localStorage.setItem('ft6_txns',    JSON.stringify(d)),
+  saveTxns: async (d) => {
+  localStorage.setItem('ft6_txns', JSON.stringify(d));
+
+  // delete old data from firebase
+  const snapshot = await db.collection("transactions").get();
+  snapshot.forEach(doc => doc.ref.delete());
+
+  // save new data to firebase
+  for (let txn of d) {
+    await db.collection("transactions").add(txn);
+  }
+},
   getBudgets:    () => JSON.parse(localStorage.getItem('ft6_budgets') || '{"cats":{}}'),
   saveBudgets:   (d) => localStorage.setItem('ft6_budgets', JSON.stringify(d)),
   getPrefs:      () => JSON.parse(localStorage.getItem('ft6_prefs')   || '{}'),
