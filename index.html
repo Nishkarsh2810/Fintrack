@@ -474,6 +474,33 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 .sync-indicator.connected{color:var(--income);}
 .sync-indicator.offline{color:var(--expense);}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+/* ── DRAG HANDLE ── */
+.drag-handle{cursor:grab;color:var(--text3);padding:4px 6px;font-size:16px;line-height:1;flex-shrink:0;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:6px;transition:color 0.15s,background 0.15s;}
+.drag-handle:hover{color:var(--text2);background:var(--surface3);}
+.drag-handle:active{cursor:grabbing;}
+.dragging{opacity:0.5;background:var(--surface3)!important;}
+.drag-over{border-top:2px solid var(--accent)!important;}
+
+/* ── ALERT CHIP: DUE SOON ── */
+.alert-chip.dueSoon{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);}
+
+/* ── BILLS NAV BADGE ── */
+.nav-btn{position:relative;}
+.nav-badge{position:absolute;top:4px;right:8px;background:var(--expense);color:#fff;font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;}
+
+/* ── RECURRING TOGGLE ── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r-xs);padding:11px 14px;cursor:pointer;transition:border-color 0.15s;}
+.toggle-row:hover{border-color:var(--border2);}
+.toggle-row-label{font-size:13px;font-weight:500;color:var(--text);}
+.toggle-switch{width:36px;height:20px;border-radius:10px;background:var(--surface3);position:relative;transition:background 0.2s;flex-shrink:0;}
+.toggle-switch.on{background:var(--accent);}
+.toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:7px;background:#fff;transition:transform 0.2s;}
+.toggle-switch.on::after{transform:translateX(16px);}
+.recurring-badge{font-size:9px;font-weight:700;background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border);border-radius:100px;padding:2px 7px;white-space:nowrap;}
+
+/* ── CUSTOM EMOJI FIELD ── */
+.emoji-input{font-size:22px;text-align:center;width:54px;padding:8px;border-radius:var(--r-xs);border:1.5px solid var(--border2);background:var(--surface2);cursor:text;}
 </style>
 </head>
 <body>
@@ -699,8 +726,22 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
           <option value="custom">✏️ Custom…</option>
         </select>
       </div>
-      <div class="form-group" id="custom-type-wrap" style="display:none"><div class="flabel">Custom Type Name</div><input class="finput" id="a-custom-type" type="text" placeholder="e.g. Investment"/></div>
+      <!-- Custom type: name + emoji on same row -->
+      <div class="form-group" id="custom-type-wrap" style="display:none">
+        <div class="flabel">Custom Type Name</div>
+        <input class="finput" id="a-custom-type" type="text" placeholder="e.g. Investment"/>
+      </div>
+      <div class="form-group" id="custom-emoji-wrap" style="display:none">
+        <div class="flabel">Emoji Icon</div>
+        <input class="finput emoji-input" id="a-custom-emoji" type="text" placeholder="📂" maxlength="2"/>
+      </div>
       <div class="form-group full"><div id="acc-type-hint" class="field-hint"></div></div>
+      <!-- Credit card bill due date -->
+      <div class="form-group full" id="credit-due-wrap" style="display:none">
+        <div class="flabel">Bill Due Date (day of month)</div>
+        <input class="finput" id="a-credit-due" type="number" placeholder="e.g. 15" min="1" max="31" inputmode="numeric"/>
+        <div class="field-hint">A bill reminder will be created automatically each month.</div>
+      </div>
       <div class="form-group full"><div class="flabel" id="a-bal-label">Opening Balance (₹)</div><input class="finput" id="a-bal" type="number" placeholder="0" inputmode="decimal"/></div>
     </div>
     <input type="hidden" id="edit-acc-id" value=""/>
@@ -731,6 +772,13 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
           <option value="🎬 Subscription">🎬 Subscription</option>
           <option value="📦 Other">📦 Other</option>
         </select>
+      </div>
+      <!-- Recurring toggle -->
+      <div class="form-group full">
+        <div class="toggle-row" onclick="toggleRecurring()" id="recurring-toggle-row">
+          <span class="toggle-row-label">🔁 Repeat every month</span>
+          <div class="toggle-switch" id="recurring-toggle-switch"></div>
+        </div>
       </div>
     </div>
     <input type="hidden" id="edit-bill-id" value=""/>
@@ -855,7 +903,11 @@ const thisYM   = () => new Date().toISOString().substring(0,7);
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 const ICONS = {bank:'🏦',cash:'💵',upi:'📱',card:'💳',savings:'💰',wallet:'👛',credit:'💳',other:'📂'};
-const getAccIcon = type => ICONS[type]||'📂';
+// Returns the icon for an account: custom emoji if set, otherwise type icon
+const getAccIcon = a => {
+  if(typeof a === 'string') return ICONS[a]||'📂'; // backward compat (type string)
+  return a.customEmoji || ICONS[a.type] || '📂';
+};
 
 const DEFAULT_EXP_CATS = ['🍽️ Food','🚗 Transport','🛍️ Shopping','🎬 Entertainment','💊 Health','📚 Education','💡 Bills','🏠 Rent','✂️ Personal','📦 Other'];
 const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 Investment','🎁 Gift','💰 Other'];
@@ -866,12 +918,32 @@ const getEmoji   = cat => (cat||'').split(' ')[0]||'📦';
 const getCatName = cat => (cat||'').split(' ').slice(1).join(' ')||cat||'';
 
 /* ── BILL HELPERS ── */
+
+// For recurring bills, paid status is stored per month: bill.paidMonths = ['2025-06',…]
+function isBillPaidThisMonth(bill) {
+  if(!bill.recurring) return bill.paid;
+  const ym = thisYM();
+  return Array.isArray(bill.paidMonths) && bill.paidMonths.includes(ym);
+}
+
+// Effective status for a bill (accounts for recurring)
 function billStatus(bill) {
-  if(bill.paid) return 'paid';
-  const today=todayStr();
-  if(bill.dueDate > today) return 'upcoming';
-  if(bill.dueDate === today) return 'duetoday';
+  const paid = bill.recurring ? isBillPaidThisMonth(bill) : bill.paid;
+  if(paid) return 'paid';
+  // For recurring bills, effective due date = same day this month
+  const effDue = effectiveDueDate(bill);
+  const today = todayStr();
+  if(effDue > today) return 'upcoming';
+  if(effDue === today) return 'duetoday';
   return 'overdue';
+}
+
+// For recurring bills: compute YYYY-MM-DD for this month using bill.dayOfMonth
+function effectiveDueDate(bill) {
+  if(!bill.recurring || !bill.dayOfMonth) return bill.dueDate;
+  const now = new Date();
+  const day = String(Math.min(bill.dayOfMonth, new Date(now.getFullYear(), now.getMonth()+1, 0).getDate())).padStart(2,'0');
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${day}`;
 }
 function billStatusLabel(status) {
   if(status==='overdue')  return 'Overdue';
@@ -1117,7 +1189,12 @@ function saveTxn(){
     }
     const obj={type:'transfer',amount,accountId:from,toAccountId:to,note,date,category:'🔄 Transfer'};
     if(editingTxnId){obj.id=editingTxnId;DB.updateTxn(obj);toast('✅ Transfer updated');}
-    else{DB.addTxn(obj);toast('🔄 Transfer saved');}
+    else{
+      DB.addTxn(obj);
+      // Auto-mark credit card bill paid when transferring to a credit account
+      autoMarkCreditBillPaid(to);
+      toast('🔄 Transfer saved');
+    }
     closeSheet('txn'); refreshPage(); return;
   }
 
@@ -1148,9 +1225,12 @@ function saveTxn(){
 /* ── ACCOUNT SHEET ── */
 function onAccTypeChange(){
   const v=document.getElementById('a-type').value;
-  document.getElementById('custom-type-wrap').style.display=v==='custom'?'':'none';
+  const isCustom=v==='custom', isCredit=v==='credit';
+  document.getElementById('custom-type-wrap').style.display=isCustom?'':'none';
+  document.getElementById('custom-emoji-wrap').style.display=isCustom?'':'none';
+  document.getElementById('credit-due-wrap').style.display=isCredit?'':'none';
   const hint=document.getElementById('acc-type-hint');
-  if(v==='credit') hint.innerHTML='<span style="color:var(--credit)">💳 Credit accounts track outstanding debt. Expenses increase debt, payments (transfers) reduce it.</span>';
+  if(isCredit) hint.innerHTML='<span style="color:var(--credit)">💳 Credit accounts track outstanding debt. A bill reminder will be auto-created monthly.</span>';
   else hint.textContent='';
 }
 
@@ -1160,7 +1240,11 @@ function openAddAccSheet(){
   document.getElementById('save-acc-btn').textContent='Add Account';
   document.getElementById('a-name').value=''; document.getElementById('a-bal').value='';
   document.getElementById('a-type').value='bank'; document.getElementById('a-custom-type').value='';
+  document.getElementById('a-custom-emoji').value='';
+  document.getElementById('a-credit-due').value='';
   document.getElementById('custom-type-wrap').style.display='none';
+  document.getElementById('custom-emoji-wrap').style.display='none';
+  document.getElementById('credit-due-wrap').style.display='none';
   document.getElementById('acc-type-hint').textContent='';
   document.getElementById('a-bal-label').textContent='Opening Balance (₹)';
   document.getElementById('acc-overlay').classList.add('open');
@@ -1174,8 +1258,19 @@ function openEditAccSheet(accId){
   document.getElementById('save-acc-btn').textContent='Save Changes';
   document.getElementById('a-name').value=acc.name;
   const known=['bank','cash','upi','savings','wallet','credit'];
-  if(known.includes(acc.type)){document.getElementById('a-type').value=acc.type;document.getElementById('custom-type-wrap').style.display='none';}
-  else{document.getElementById('a-type').value='custom';document.getElementById('a-custom-type').value=acc.type;document.getElementById('custom-type-wrap').style.display='';}
+  if(known.includes(acc.type)){
+    document.getElementById('a-type').value=acc.type;
+    document.getElementById('custom-type-wrap').style.display='none';
+    document.getElementById('custom-emoji-wrap').style.display='none';
+  } else {
+    document.getElementById('a-type').value='custom';
+    document.getElementById('a-custom-type').value=acc.type;
+    document.getElementById('a-custom-emoji').value=acc.customEmoji||'';
+    document.getElementById('custom-type-wrap').style.display='';
+    document.getElementById('custom-emoji-wrap').style.display='';
+  }
+  document.getElementById('credit-due-wrap').style.display=acc.type==='credit'?'':'none';
+  document.getElementById('a-credit-due').value=acc.creditDueDay||'';
   onAccTypeChange();
   document.getElementById('a-bal-label').textContent='Opening Balance (₹)';
   document.getElementById('a-bal').value=acc.openingBalance||0;
@@ -1188,13 +1283,18 @@ function saveAccount(){
   if(!name) return toast('Enter account name');
   const typeVal=document.getElementById('a-type').value;
   const type=typeVal==='custom'?document.getElementById('a-custom-type').value.trim()||'other':typeVal;
+  const customEmoji=typeVal==='custom'?document.getElementById('a-custom-emoji').value.trim():'';
   const bal=parseFloat(document.getElementById('a-bal').value)||0;
+  const creditDueDay=typeVal==='credit'?parseInt(document.getElementById('a-credit-due').value)||0:0;
   const editId=document.getElementById('edit-acc-id').value;
+  const accObj={name,type,openingBalance:bal};
+  if(customEmoji) accObj.customEmoji=customEmoji;
+  if(creditDueDay) accObj.creditDueDay=creditDueDay;
   if(editId){
-    DB.updateAccount({id:editId,name,type,openingBalance:bal});
+    DB.updateAccount({id:editId,...accObj});
     closeSheet('acc'); renderAccounts(); renderHome(); toast('✅ Account updated');
   } else {
-    DB.addAccount({name,type,openingBalance:bal});
+    DB.addAccount(accObj);
     closeSheet('acc'); renderHome();
     if(document.getElementById('page-accounts').classList.contains('active')) renderAccounts();
     toast('✅ Account added');
@@ -1209,61 +1309,295 @@ function delAccount(id){
 }
 
 /* ── BILL SHEET ── */
+let billRecurring = false;
+
+function toggleRecurring(){
+  billRecurring = !billRecurring;
+  document.getElementById('recurring-toggle-switch').classList.toggle('on', billRecurring);
+}
+
 function openBillSheet(){
-  document.getElementById('edit-bill-id').value='';
-  document.getElementById('bill-sheet-title').textContent='Add Bill';
-  document.getElementById('b-name').value=''; document.getElementById('b-amount').value='';
-  document.getElementById('b-due').value=''; document.getElementById('b-cat').value='';
+  billRecurring = false;
+  document.getElementById('edit-bill-id').value = '';
+  document.getElementById('bill-sheet-title').textContent = 'Add Bill';
+  document.getElementById('b-name').value = '';
+  document.getElementById('b-amount').value = '';
+  document.getElementById('b-due').value = '';
+  document.getElementById('b-cat').value = '';
+  document.getElementById('recurring-toggle-switch').classList.remove('on');
   document.getElementById('bill-overlay').classList.add('open');
-  setTimeout(()=>{try{document.getElementById('b-name').focus();}catch(e){}},320);
+  setTimeout(()=>{ try{ document.getElementById('b-name').focus(); }catch(e){} }, 320);
 }
 
 function openEditBillSheet(billId){
-  const bill=DB.getBills().find(b=>b.id===billId); if(!bill) return;
-  document.getElementById('edit-bill-id').value=billId;
-  document.getElementById('bill-sheet-title').textContent='Edit Bill';
-  document.getElementById('b-name').value=bill.name;
-  document.getElementById('b-amount').value=bill.amount||'';
-  document.getElementById('b-due').value=bill.dueDate;
-  document.getElementById('b-cat').value=bill.category||'';
+  const bill = DB.getBills().find(b => b.id === billId); if(!bill) return;
+  billRecurring = !!bill.recurring;
+  document.getElementById('edit-bill-id').value = billId;
+  document.getElementById('bill-sheet-title').textContent = 'Edit Bill';
+  document.getElementById('b-name').value = bill.name;
+  document.getElementById('b-amount').value = bill.amount || '';
+  document.getElementById('b-due').value = bill.dueDate;
+  document.getElementById('b-cat').value = bill.category || '';
+  document.getElementById('recurring-toggle-switch').classList.toggle('on', billRecurring);
   document.getElementById('bill-overlay').classList.add('open');
-  setTimeout(()=>{try{document.getElementById('b-name').focus();}catch(e){}},320);
+  setTimeout(()=>{ try{ document.getElementById('b-name').focus(); }catch(e){} }, 320);
 }
 
 function saveBill(){
-  const name=document.getElementById('b-name').value.trim();
+  const name = document.getElementById('b-name').value.trim();
   if(!name) return toast('Enter a bill name');
-  const dueDate=document.getElementById('b-due').value;
+  const dueDate = document.getElementById('b-due').value;
   if(!dueDate) return toast('Due date is required');
-  const amount=parseFloat(document.getElementById('b-amount').value)||0;
-  const category=document.getElementById('b-cat').value;
-  const editId=document.getElementById('edit-bill-id').value;
+  const amount   = parseFloat(document.getElementById('b-amount').value) || 0;
+  const category = document.getElementById('b-cat').value;
+  const editId   = document.getElementById('edit-bill-id').value;
+  // For recurring bills store the day-of-month from the chosen date
+  const dayOfMonth = billRecurring ? parseInt(dueDate.split('-')[2]) : null;
+  const billObj = { name, amount, dueDate, category, recurring: billRecurring };
+  if(dayOfMonth) billObj.dayOfMonth = dayOfMonth;
   if(editId){
-    const old=DB.getBills().find(b=>b.id===editId);
-    DB.updateBill({...old,id:editId,name,amount,dueDate,category});
+    const old = DB.getBills().find(b => b.id === editId);
+    DB.updateBill({ ...old, id: editId, ...billObj });
     closeSheet('bill'); renderBills(); renderHome(); toast('✅ Bill updated');
   } else {
-    DB.addBill({name,amount,dueDate,category});
+    DB.addBill(billObj);
     closeSheet('bill'); renderBills(); renderHome(); toast('✅ Bill added');
   }
 }
 
-function delBill(id){
-  showConfirm('🔔','Delete Bill?','This will permanently remove this reminder.','Delete',()=>{
-    DB.delBill(id); renderBills(); renderHome(); toast('Bill removed');
-  });
-}
-
 function markBillPaid(id){
-  const bill=DB.getBills().find(b=>b.id===id); if(!bill) return;
-  DB.updateBill({...bill,paid:true,paidDate:todayStr()});
+  const bill = DB.getBills().find(b => b.id === id); if(!bill) return;
+  if(bill.recurring){
+    const ym = thisYM();
+    const paidMonths = Array.isArray(bill.paidMonths) ? [...bill.paidMonths] : [];
+    if(!paidMonths.includes(ym)) paidMonths.push(ym);
+    DB.updateBill({ ...bill, paidMonths });
+  } else {
+    DB.updateBill({ ...bill, paid: true, paidDate: todayStr() });
+  }
   renderBills(); renderHome(); toast('✅ Bill marked as paid');
 }
 
 function markBillUnpaid(id){
-  const bill=DB.getBills().find(b=>b.id===id); if(!bill) return;
-  DB.updateBill({...bill,paid:false,paidDate:null});
+  const bill = DB.getBills().find(b => b.id === id); if(!bill) return;
+  if(bill.recurring){
+    const ym = thisYM();
+    const paidMonths = (bill.paidMonths || []).filter(m => m !== ym);
+    DB.updateBill({ ...bill, paidMonths });
+  } else {
+    DB.updateBill({ ...bill, paid: false, paidDate: null });
+  }
   renderBills(); renderHome(); toast('Bill marked as unpaid');
+}
+
+/* ── EFFECTIVE BILLS ──
+   Merges stored bills with auto-generated credit card bills.
+   Credit card bills are virtual (_virtual:true) — not stored in DB,
+   generated on the fly each time the bills page or alerts render. */
+function getEffectiveBills(){
+  const stored = DB.getBills();
+  const virtual = [];
+  DB.getAccounts().filter(a => a.type==='credit' && a.creditDueDay).forEach(acc => {
+    const now    = new Date();
+    const maxDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const day    = String(Math.min(acc.creditDueDay, maxDay)).padStart(2,'0');
+    const ym     = thisYM();
+    const dueDate = `${ym}-${day}`;
+
+    // ALWAYS compute amount from live balance — never cache it
+    const outstanding = DB.accBal(acc.id);
+    // Only show when there IS debt (balance negative = money owed)
+    if(outstanding >= 0) return;
+    const amount = Math.abs(outstanding);
+
+    // If there's a stored bill tied to this card, use it for paidMonths state only
+    // but override amount with the live computed value every time
+    const existingStored = stored.find(b => b._creditAccId === acc.id);
+    if(existingStored){
+      virtual.push({ ...existingStored, amount, dueDate });
+      return;
+    }
+    virtual.push({
+      id: 'virt_'+acc.id,
+      name: `${acc.name} Credit Bill`,
+      amount,          // always live
+      dueDate,
+      category: '💳 Credit Card',
+      recurring: true,
+      dayOfMonth: acc.creditDueDay,
+      paidMonths: [],
+      _virtual: true,
+      _creditAccId: acc.id,
+    });
+  });
+  return [...stored, ...virtual];
+}
+
+/* ── NAV BADGE ── */
+function updateBillsBadge(count){
+  // Remove any existing badge
+  document.querySelectorAll('.nav-badge').forEach(b => b.remove());
+  if(!count) return;
+  // Bottom nav Bills button
+  const btn = document.querySelector('.nav-btn[data-page="bills"]');
+  if(btn){ const b=document.createElement('div'); b.className='nav-badge'; b.textContent=count>9?'9+':count; btn.appendChild(b); }
+  // Sidebar Bills item
+  const sBtn = document.querySelector('.sidebar-item[data-page="bills"]');
+  if(sBtn){ const b=document.createElement('div'); b.className='nav-badge'; b.style.cssText='position:relative;top:auto;right:auto;margin-left:auto;'; b.textContent=count>9?'9+':count; sBtn.appendChild(b); }
+}
+
+/* ── AUTO-MARK CREDIT BILL PAID ON TRANSFER ──
+   Called inside saveTxn() after a transfer to a credit account. */
+function autoMarkCreditBillPaid(toAccId){
+  // Check if this is a credit account
+  if(!DB.isCredit(toAccId)) return;
+  const ym = thisYM();
+  // Find any real recurring bill linked to this credit card
+  const bills = DB.getBills();
+  bills.forEach(b => {
+    if(b._creditAccId === toAccId && b.recurring){
+      const paidMonths = Array.isArray(b.paidMonths) ? [...b.paidMonths] : [];
+      if(!paidMonths.includes(ym)){ paidMonths.push(ym); DB.updateBill({...b,paidMonths}); }
+    }
+  });
+}
+
+/* ── DRAG AND DROP (handle-only, works on mobile + desktop) ── */
+function initDrag(containerId, type){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  let dragSrc = null;
+
+  // We attach listeners to HANDLES only, then make the CARD draggable on demand
+  container.querySelectorAll(`.drag-handle[data-drag-type="${type}"]`).forEach(handle => {
+    // Mouse
+    handle.addEventListener('mousedown', e => {
+      const card = handle.closest('[data-id],[data-cat]');
+      if(!card) return;
+      card.draggable = true;
+      card.addEventListener('dragstart', onDragStart, { once: true });
+    });
+    // Touch
+    handle.addEventListener('touchstart', onTouchStart, { passive: false });
+  });
+
+  function onDragStart(e){
+    dragSrc = e.currentTarget;
+    dragSrc.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSrc.dataset.id || dragSrc.dataset.cat);
+  }
+
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('[data-id],[data-cat]');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if(target && target !== dragSrc) target.classList.add('drag-over');
+  });
+
+  container.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('[data-id],[data-cat]');
+    if(!target || !dragSrc || target === dragSrc) return cleanup();
+    reorder(type, dragSrc, target);
+    cleanup();
+  });
+
+  container.addEventListener('dragend', () => cleanup());
+
+  function cleanup(){
+    if(dragSrc){ dragSrc.classList.remove('dragging'); dragSrc.draggable = false; }
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrc = null;
+  }
+
+  // ── TOUCH DRAG ──
+  let touchDragEl = null, touchClone = null, touchOffsetX = 0, touchOffsetY = 0;
+
+  function onTouchStart(e){
+    const handle = e.currentTarget;
+    const card   = handle.closest('[data-id],[data-cat]');
+    if(!card) return;
+    e.preventDefault();
+    dragSrc = card;
+    const rect = card.getBoundingClientRect();
+    touchOffsetX = e.touches[0].clientX - rect.left;
+    touchOffsetY = e.touches[0].clientY - rect.top;
+    // Visual clone
+    touchClone = card.cloneNode(true);
+    touchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;opacity:0.85;pointer-events:none;z-index:9999;transition:none;box-shadow:0 8px 32px rgba(0,0,0,0.4);`;
+    document.body.appendChild(touchClone);
+    card.classList.add('dragging');
+
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd, { once: true });
+  }
+
+  function onTouchMove(e){
+    e.preventDefault();
+    if(!touchClone) return;
+    const x = e.touches[0].clientX - touchOffsetX;
+    const y = e.touches[0].clientY - touchOffsetY;
+    touchClone.style.top  = y + 'px';
+    touchClone.style.left = x + 'px';
+    // Highlight target
+    touchClone.style.display = 'none';
+    const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    touchClone.style.display = '';
+    const target = el?.closest('[data-id],[data-cat]');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if(target && target !== dragSrc) target.classList.add('drag-over');
+    touchDragEl = target || null;
+  }
+
+  function onTouchEnd(){
+    document.removeEventListener('touchmove', onTouchMove);
+    if(touchClone){ touchClone.remove(); touchClone = null; }
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if(dragSrc && touchDragEl && dragSrc !== touchDragEl) reorder(type, dragSrc, touchDragEl);
+    if(dragSrc) dragSrc.classList.remove('dragging');
+    dragSrc = null; touchDragEl = null;
+  }
+}
+
+/* ── REORDER: apply new order to data + save ── */
+function reorder(type, srcEl, targetEl){
+  if(type === 'account'){
+    const accs = DB.getAccounts();
+    const ids  = [...document.getElementById('accounts-list').querySelectorAll('[data-id]')].map(el => el.dataset.id);
+    // Move srcId to targetId position
+    const srcId = srcEl.dataset.id, tgtId = targetEl.dataset.id;
+    const sorted = reorderArray(accs, a => a.id, srcId, tgtId);
+    DB.saveAccounts(sorted);
+    renderAccounts(); renderHome();
+  } else if(type === 'category'){
+    // Reorder customCats (default cats stay in their relative position)
+    const allCats = [...document.getElementById('cat-budgets-list').querySelectorAll('[data-cat]')].map(el => el.dataset.cat);
+    const customs = DB.getCustomCats();
+    const srcCat  = srcEl.dataset.cat, tgtCat = targetEl.dataset.cat;
+    // Build a full ordered list, then extract only custom ones in new order
+    const reordered = reorderArray(allCats, c => c, srcCat, tgtCat);
+    const newCustomOrder = reordered.filter(c => customs.includes(c));
+    DB.saveCustomCats(newCustomOrder);
+    renderBudget();
+  } else if(type === 'bill'){
+    const bills  = DB.getBills();
+    const srcId  = srcEl.dataset.id, tgtId = targetEl.dataset.id;
+    const sorted = reorderArray(bills, b => b.id, srcId, tgtId);
+    DB.saveBills(sorted);
+    renderBills();
+  }
+}
+
+// Generic: move item with key=srcKey to position of item with key=tgtKey
+function reorderArray(arr, keyFn, srcKey, tgtKey){
+  const result = [...arr];
+  const si = result.findIndex(x => keyFn(x) === srcKey);
+  const ti = result.findIndex(x => keyFn(x) === tgtKey);
+  if(si < 0 || ti < 0 || si === ti) return result;
+  const [moved] = result.splice(si, 1);
+  result.splice(ti, 0, moved);
+  return result;
 }
 
 /* ── BUDGET ── */
@@ -1273,6 +1607,12 @@ function saveCatBudget(cat){
   const b=DB.getBudgets(); if(!b.cats)b.cats={};
   if(val>0)b.cats[cat]=val; else delete b.cats[cat];
   DB.saveBudgets(b); if(input)input.value=''; renderBudget(); toast(val>0?'Budget set':'Budget cleared');
+}
+
+function delBill(id){
+  showConfirm('🔔','Delete Bill?','This will permanently remove this reminder.','Delete',()=>{
+    DB.delBill(id); renderBills(); renderHome(); toast('Bill removed');
+  });
 }
 
 function openCatEdit(cat){
@@ -1319,15 +1659,31 @@ function addCustomCat(){
   input.value=''; renderBudget(); toast('✅ Category added');
 }
 
-/* ── REFRESH ── */
+/* ── REFRESH ──
+   After any transaction change (add/edit/delete/transfer):
+   - Re-render the active page
+   - ALWAYS refresh home alerts + badge (credit bill amount changes with every txn)
+   - ALWAYS refresh bills page if it's cached in DOM
+   - ALWAYS refresh dashboard numbers ── */
 function refreshPage(){
   const p=document.querySelector('.page.active')?.id?.replace('page-','');
-  if(p==='home')     renderHome();
+
+  // Re-render whatever page is visible
+  if(p==='home')          renderHome();
   else if(p==='txns')     renderTxns();
   else if(p==='budget')   renderBudget();
   else if(p==='accounts') renderAccounts();
   else if(p==='bills')    renderBills();
-  if(p!=='home') renderDashboardNumbers();
+
+  // Always keep these in sync — credit card bill amount mirrors balance in real time
+  if(p!=='home'){
+    renderDashboardNumbers();
+    renderHomeAlerts();   // updates overdue/duetoday/dueSoon chips + badge
+    renderHomeAccs();     // updates account pills (outstanding balance)
+  }
+  // Always re-render bills list if it's not the active page
+  // so next time user navigates there it's already fresh
+  if(p!=='bills') renderBills();
 }
 
 /* ── RENDER: HOME ── */
@@ -1350,14 +1706,30 @@ function renderHome(){
 function renderHomeAlerts(){
   const alertsEl=document.getElementById('home-alerts'); if(!alertsEl) return;
   const today=todayStr();
-  const bills=DB.getBills().filter(b=>!b.paid);
-  const overdue=bills.filter(b=>b.dueDate<today);
-  const dueToday=bills.filter(b=>b.dueDate===today);
+  const in3=new Date(); in3.setDate(in3.getDate()+3);
+  const in3Str=in3.toISOString().split('T')[0];
+
+  // Use effective bills list (includes virtual recurring + credit card bills)
+  const bills=getEffectiveBills();
+  const overdue=bills.filter(b=>billStatus(b)==='overdue');
+  const dueToday=bills.filter(b=>billStatus(b)==='duetoday');
+  // Due soon: upcoming bills whose effective due date is within 3 days (but not today)
+  const dueSoon=bills.filter(b=>{
+    if(billStatus(b)!=='upcoming') return false;
+    const eff=effectiveDueDate(b);
+    return eff>today && eff<=in3Str;
+  });
+
   let html='';
   if(overdue.length) html+=`<div class="alert-chip overdue" onclick="nav('bills')">⚠️ ${overdue.length} bill${overdue.length>1?'s':''} overdue</div>`;
   if(dueToday.length) html+=`<div class="alert-chip duetoday" onclick="nav('bills')">🔔 ${dueToday.length} bill${dueToday.length>1?'s':''} due today</div>`;
+  if(dueSoon.length) html+=`<div class="alert-chip dueSoon" onclick="nav('bills')">⏰ ${dueSoon.length} bill${dueSoon.length>1?'s':''} due soon</div>`;
   alertsEl.innerHTML=html;
   alertsEl.style.marginBottom=html?'8px':'0';
+
+  // Update nav badge count
+  const urgentCount=overdue.length+dueToday.length;
+  updateBillsBadge(urgentCount);
 }
 
 function renderInsight(){
@@ -1385,7 +1757,7 @@ function renderHomeAccs(){
     const isCredit=a.type==='credit';
     const balClass=isCredit?(bal<0?'credit-bal':(bal===0?'':'')):'';
     return `<div class="acc-pill">
-      <div class="acc-pill-icon">${getAccIcon(a.type)}</div>
+      <div class="acc-pill-icon">${getAccIcon(a)}</div>
       <div class="acc-pill-name">${a.name}</div>
       <div class="acc-pill-bal ${balClass}">${isCredit&&bal<0?'-':''} ${fmt(bal)}</div>
       <div class="acc-pill-type">${isCredit?'Outstanding':a.type}</div>
@@ -1462,7 +1834,7 @@ function renderBudget(){
     const cp=catLimit>0?Math.min((catSpent/catLimit)*100,100):0;
     const cf=cp>=100?'over':cp>=80?'warn':'';
     const isCustom=customCats.includes(cat);
-    return `<div class="cat-budget-row">
+    return `<div class="cat-budget-row" data-cat="${cat.replace(/"/g,'&quot;')}">
       <div class="cat-budget-header">
         <div class="cat-budget-left"><span style="font-size:16px">${getEmoji(cat)}</span><div class="cat-budget-name">${getCatName(cat)}</div></div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -1471,6 +1843,7 @@ function renderBudget(){
             <button class="cat-action-btn edit" onclick="openCatEdit('${cat}')">edit</button>
             ${isCustom?`<button class="cat-action-btn del" onclick="deleteCat('${cat}')">✕</button>`:''}
           </div>
+          <div class="drag-handle" data-drag-type="category" data-drag-id="${cat.replace(/"/g,'&quot;')}" title="Drag to reorder">≡</div>
         </div>
       </div>
       ${catLimit>0?`<div class="progress-track" style="margin-bottom:8px"><div class="progress-fill ${cf}" style="width:${cp}%"></div></div>`:''}
@@ -1480,6 +1853,7 @@ function renderBudget(){
       </div>
     </div>`;
   }).join('');
+  initDrag('cat-budgets-list','category');
 }
 
 /* ── RENDER: ACCOUNTS ── */
@@ -1487,7 +1861,7 @@ function renderAccounts(){
   const el=document.getElementById('accounts-list');
   const accs=DB.getAccounts();
   if(!accs.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🏦</div>No accounts yet.<br><span onclick="openSheet('acc')" style="color:var(--accent);cursor:pointer;font-weight:600">Add one →</span></div>`;return;}
-  el.innerHTML=accs.map(a=>{
+  el.innerHTML=accs.map((a,idx)=>{
     const bal=DB.accBal(a.id);
     const isCredit=a.type==='credit';
     const txns=DB.getTxns().filter(t=>t.accountId===a.id||t.toAccountId===a.id);
@@ -1496,12 +1870,13 @@ function renderAccounts(){
     const balClass=isCredit?(bal<0?'acc-card-bal credit-outstanding':bal===0?'acc-card-bal credit-zero':'acc-card-bal'):'acc-card-bal';
     const balDisplay=isCredit?(bal<0?`-${fmt(bal)}`:fmt(bal)):fmt(bal);
     const balLabel=isCredit?'Outstanding':'Balance';
-    return `<div class="acc-card${isCredit?' credit-card-type':''}">
+    return `<div class="acc-card${isCredit?' credit-card-type':''}" data-id="${a.id}" draggable="false">
       <div class="acc-card-top">
         <div class="acc-card-left">
-          <div class="acc-card-icon${isCredit?' credit-icon':''}">${getAccIcon(a.type)}</div>
+          <div class="acc-card-icon${isCredit?' credit-icon':''}">${getAccIcon(a)}</div>
           <div><div class="acc-card-name">${a.name}</div><div class="acc-card-type${isCredit?' credit-type':''}">${isCredit?'Credit Card':a.type}</div></div>
         </div>
+        <div class="drag-handle" data-drag-type="account" data-drag-id="${a.id}" title="Drag to reorder">≡</div>
       </div>
       <div class="acc-bal-label">${balLabel}</div>
       <div class="${balClass}">${balDisplay}</div>
@@ -1516,43 +1891,55 @@ function renderAccounts(){
       </div>
     </div>`;
   }).join('');
+  initDrag('accounts-list','account');
 }
 
 /* ── RENDER: BILLS ── */
 function renderBills(){
   const el=document.getElementById('bills-list'); if(!el) return;
-  const bills=DB.getBills();
-  if(!bills.length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔔</div>No bills yet.<br>Add reminders for rent, subscriptions, utilities…<br><br><span onclick="openSheet('bill')" style="color:var(--accent);cursor:pointer;font-weight:600">+ Add your first bill</span></div>`;return;}
+  const bills=getEffectiveBills();
+  if(!DB.getBills().length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔔</div>No bills yet.<br>Add reminders for rent, subscriptions, utilities…<br><br><span onclick="openSheet('bill')" style="color:var(--accent);cursor:pointer;font-weight:600">+ Add your first bill</span></div>`;return;}
 
   const today=todayStr();
-  const overdue=bills.filter(b=>!b.paid&&b.dueDate<today).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
-  const dueToday=bills.filter(b=>!b.paid&&b.dueDate===today);
-  const upcoming=bills.filter(b=>!b.paid&&b.dueDate>today).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
-  const paid=bills.filter(b=>b.paid).sort((a,b)=>b.paidDate?.localeCompare(a.paidDate||'')||0);
+  const in3=new Date(); in3.setDate(in3.getDate()+3);
+  const in3Str=in3.toISOString().split('T')[0];
+
+  const overdue  = bills.filter(b=>billStatus(b)==='overdue').sort((a,b)=>effectiveDueDate(a).localeCompare(effectiveDueDate(b)));
+  const dueToday = bills.filter(b=>billStatus(b)==='duetoday');
+  const dueSoon  = bills.filter(b=>{ if(billStatus(b)!=='upcoming') return false; const e=effectiveDueDate(b); return e>today&&e<=in3Str; }).sort((a,b)=>effectiveDueDate(a).localeCompare(effectiveDueDate(b)));
+  const upcoming = bills.filter(b=>{ if(billStatus(b)!=='upcoming') return false; const e=effectiveDueDate(b); return e>in3Str; }).sort((a,b)=>effectiveDueDate(a).localeCompare(effectiveDueDate(b)));
+  const paid     = bills.filter(b=>billStatus(b)==='paid');
 
   const billCard=(bill,status)=>{
-    const label=billStatusLabel(status);
-    const dayText=daysUntil(bill.dueDate);
-    const dueFormatted=new Date(bill.dueDate+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
-    const paidClass=bill.paid?'paid':'';
-    const payBtn=!bill.paid?`<button class="bill-btn pay" onclick="markBillPaid('${bill.id}')">✓ Mark Paid</button>`
+    const eff=effectiveDueDate(bill);
+    const dueFormatted=new Date(eff+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    const paidThisMonth=isBillPaidThisMonth(bill);
+    const paidClass=paidThisMonth?'paid':'';
+    const payBtn=!paidThisMonth
+      ?`<button class="bill-btn pay" onclick="markBillPaid('${bill.id}')">✓ Mark Paid</button>`
       :`<button class="bill-btn" onclick="markBillUnpaid('${bill.id}')">↩ Mark Unpaid</button>`;
-    return `<div class="bill-card ${status} ${paidClass}">
+    const recurBadge=bill.recurring?`<span class="recurring-badge">🔁 Monthly</span>`:'';
+    const isVirtual=bill._virtual; // credit card auto-bills can't be edited/deleted
+    const editDel=!isVirtual?`
+      <button class="bill-btn edit" onclick="openEditBillSheet('${bill.id}')">Edit</button>
+      <button class="bill-btn del" onclick="delBill('${bill.id}')">Delete</button>`:'';
+    const dragHandle=!isVirtual?`<div class="drag-handle" data-drag-type="bill" data-drag-id="${bill.id}" title="Drag to reorder">≡</div>`:'';
+    return `<div class="bill-card ${status} ${paidClass}" data-id="${bill.id}">
       <div class="bill-top">
         <div class="bill-icon ${status}">${getBillEmoji(bill.category)}</div>
         <div class="bill-body">
-          <div class="bill-name">${bill.name}</div>
+          <div class="bill-name" style="display:flex;align-items:center;gap:6px">${bill.name} ${recurBadge}</div>
           <div class="bill-meta">${bill.category||'Bill'} · Due ${dueFormatted}</div>
         </div>
         <div class="bill-right">
           ${bill.amount?`<div class="bill-amount">${fmt(bill.amount)}</div>`:''}
-          <div class="bill-due-badge ${status}">${bill.paid?'Paid':dayText}</div>
+          <div class="bill-due-badge ${status}">${paidThisMonth?'Paid':daysUntil(eff)}</div>
         </div>
+        ${dragHandle}
       </div>
       <div class="bill-actions">
         ${payBtn}
-        <button class="bill-btn edit" onclick="openEditBillSheet('${bill.id}')">Edit</button>
-        <button class="bill-btn del" onclick="delBill('${bill.id}')">Delete</button>
+        ${editDel}
       </div>
     </div>`;
   };
@@ -1560,9 +1947,11 @@ function renderBills(){
   let html='';
   if(overdue.length){html+=`<div class="bills-section-header"><span class="bills-section-dot overdue"></span>Overdue (${overdue.length})</div>`;html+=overdue.map(b=>billCard(b,'overdue')).join('');}
   if(dueToday.length){html+=`<div class="bills-section-header"><span class="bills-section-dot duetoday"></span>Due Today (${dueToday.length})</div>`;html+=dueToday.map(b=>billCard(b,'duetoday')).join('');}
+  if(dueSoon.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming" style="background:var(--warn)"></span>Due Soon (${dueSoon.length})</div>`;html+=dueSoon.map(b=>billCard(b,'upcoming')).join('');}
   if(upcoming.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming"></span>Upcoming (${upcoming.length})</div>`;html+=upcoming.map(b=>billCard(b,'upcoming')).join('');}
-  if(paid.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming"></span>Paid (${paid.length})</div>`;html+=paid.map(b=>billCard(b,'upcoming')).join('');}
+  if(paid.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming"></span>Paid This Month (${paid.length})</div>`;html+=paid.map(b=>billCard(b,'upcoming')).join('');}
   el.innerHTML=html||'<div class="empty-state"><div class="empty-icon">✅</div>All clear!</div>';
+  initDrag('bills-list','bill');
 }
 
 /* ── RENDER: SETTINGS ── */
