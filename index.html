@@ -1397,40 +1397,50 @@ function markBillUnpaid(id){
 function getEffectiveBills(){
   const stored = DB.getBills();
   const virtual = [];
-  DB.getAccounts().filter(a => a.type==='credit' && a.creditDueDay).forEach(acc => {
+
+  DB.getAccounts().filter(a => a.type === 'credit').forEach(acc => {
+    // Compute live outstanding — negative means money owed on the card
+    const outstanding = DB.accBal(acc.id);
+    const amount = Math.abs(outstanding);
+
+    // Build due date: use creditDueDay if set, otherwise end of current month
     const now    = new Date();
     const maxDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-    const day    = String(Math.min(acc.creditDueDay, maxDay)).padStart(2,'0');
+    const dayNum = acc.creditDueDay ? Math.min(acc.creditDueDay, maxDay) : maxDay;
+    const day    = String(dayNum).padStart(2,'0');
     const ym     = thisYM();
     const dueDate = `${ym}-${day}`;
 
-    // ALWAYS compute amount from live balance — never cache it
-    const outstanding = DB.accBal(acc.id);
-    // Only show when there IS debt (balance negative = money owed)
-    if(outstanding >= 0) return;
-    const amount = Math.abs(outstanding);
+    // Look for a stored record that holds paidMonths state for this account
+    const storedState = stored.find(b => b._creditAccId === acc.id);
 
-    // If there's a stored bill tied to this card, use it for paidMonths state only
-    // but override amount with the live computed value every time
-    const existingStored = stored.find(b => b._creditAccId === acc.id);
-    if(existingStored){
-      virtual.push({ ...existingStored, amount, dueDate });
-      return;
-    }
+    // Always show the bill even if outstanding is 0 (so user sees the card)
+    // Only hide it if it was fully paid this month AND balance is zero
+    const paidMonths = storedState?.paidMonths || [];
+    const paidThisMonth = paidMonths.includes(ym);
+    if(paidThisMonth && outstanding >= 0) return; // genuinely cleared, hide
+
     virtual.push({
-      id: 'virt_'+acc.id,
-      name: `${acc.name} Credit Bill`,
-      amount,          // always live
+      // Spread stored state first (gets paidMonths, id stability), then override live fields
+      ...(storedState || {}),
+      id:           'virt_' + acc.id,
+      name:         acc.name + ' Bill',
+      amount,                          // ALWAYS live — never cached
       dueDate,
-      category: '💳 Credit Card',
-      recurring: true,
-      dayOfMonth: acc.creditDueDay,
-      paidMonths: [],
-      _virtual: true,
+      category:     '💳 Credit Card',
+      recurring:    true,
+      dayOfMonth:   dayNum,
+      paidMonths,
+      _virtual:     true,
       _creditAccId: acc.id,
     });
   });
-  return [...stored, ...virtual];
+
+  // Return stored user bills FIRST (non-credit ones), then virtual credit bills
+  // Filter out any stored bills that are credit-account bills (they're replaced by virtual)
+  const creditAccIds = new Set(DB.getAccounts().filter(a=>a.type==='credit').map(a=>a.id));
+  const userBills = stored.filter(b => !b._creditAccId || !creditAccIds.has(b._creditAccId));
+  return [...userBills, ...virtual];
 }
 
 /* ── NAV BADGE ── */
@@ -1447,19 +1457,36 @@ function updateBillsBadge(count){
 }
 
 /* ── AUTO-MARK CREDIT BILL PAID ON TRANSFER ──
-   Called inside saveTxn() after a transfer to a credit account. */
+   When user transfers money TO a credit account, mark that card's bill paid.
+   Works for both stored-with-state bills and pure virtual bills. */
 function autoMarkCreditBillPaid(toAccId){
-  // Check if this is a credit account
   if(!DB.isCredit(toAccId)) return;
   const ym = thisYM();
-  // Find any real recurring bill linked to this credit card
   const bills = DB.getBills();
-  bills.forEach(b => {
-    if(b._creditAccId === toAccId && b.recurring){
-      const paidMonths = Array.isArray(b.paidMonths) ? [...b.paidMonths] : [];
-      if(!paidMonths.includes(ym)){ paidMonths.push(ym); DB.updateBill({...b,paidMonths}); }
-    }
-  });
+  // Find stored state for this credit account
+  const existing = bills.find(b => b._creditAccId === toAccId);
+  if(existing){
+    const paidMonths = Array.isArray(existing.paidMonths) ? [...existing.paidMonths] : [];
+    if(!paidMonths.includes(ym)){ paidMonths.push(ym); DB.updateBill({...existing, paidMonths}); }
+  } else {
+    // No stored state yet — create a minimal record to hold paidMonths
+    const acc = DB.getAccounts().find(a => a.id === toAccId);
+    if(!acc) return;
+    const now    = new Date();
+    const maxDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const dayNum = acc.creditDueDay ? Math.min(acc.creditDueDay, maxDay) : maxDay;
+    DB.addBill({
+      name:         acc.name + ' Bill',
+      amount:       0,
+      dueDate:      `${ym}-${String(dayNum).padStart(2,'0')}`,
+      category:     '💳 Credit Card',
+      recurring:    true,
+      dayOfMonth:   dayNum,
+      paidMonths:   [ym],
+      _virtual:     true,
+      _creditAccId: toAccId,
+    });
+  }
 }
 
 /* ── DRAG AND DROP (handle-only, works on mobile + desktop) ── */
@@ -1898,7 +1925,13 @@ function renderAccounts(){
 function renderBills(){
   const el=document.getElementById('bills-list'); if(!el) return;
   const bills=getEffectiveBills();
-  if(!DB.getBills().length){el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔔</div>No bills yet.<br>Add reminders for rent, subscriptions, utilities…<br><br><span onclick="openSheet('bill')" style="color:var(--accent);cursor:pointer;font-weight:600">+ Add your first bill</span></div>`;return;}
+
+  // Show empty state only if no user bills AND no credit accounts exist
+  const hasCreditAccs = DB.getAccounts().some(a=>a.type==='credit');
+  if(!bills.length && !hasCreditAccs){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔔</div>No bills yet.<br>Add reminders for rent, subscriptions, utilities…<br><br><span onclick="openSheet('bill')" style="color:var(--accent);cursor:pointer;font-weight:600">+ Add your first bill</span></div>`;
+    return;
+  }
 
   const today=todayStr();
   const in3=new Date(); in3.setDate(in3.getDate()+3);
@@ -1919,11 +1952,15 @@ function renderBills(){
       ?`<button class="bill-btn pay" onclick="markBillPaid('${bill.id}')">✓ Mark Paid</button>`
       :`<button class="bill-btn" onclick="markBillUnpaid('${bill.id}')">↩ Mark Unpaid</button>`;
     const recurBadge=bill.recurring?`<span class="recurring-badge">🔁 Monthly</span>`:'';
-    const isVirtual=bill._virtual; // credit card auto-bills can't be edited/deleted
+    const isVirtual=bill._virtual;
     const editDel=!isVirtual?`
       <button class="bill-btn edit" onclick="openEditBillSheet('${bill.id}')">Edit</button>
       <button class="bill-btn del" onclick="delBill('${bill.id}')">Delete</button>`:'';
     const dragHandle=!isVirtual?`<div class="drag-handle" data-drag-type="bill" data-drag-id="${bill.id}" title="Drag to reorder">≡</div>`:'';
+    // For credit card bills: always show amount (even ₹0 means card is cleared)
+    const amountDisplay = bill._virtual
+      ? `<div class="bill-amount" style="color:${bill.amount>0?'var(--expense)':'var(--income)'}">${fmt(bill.amount)}</div>`
+      : (bill.amount ? `<div class="bill-amount">${fmt(bill.amount)}</div>` : '');
     return `<div class="bill-card ${status} ${paidClass}" data-id="${bill.id}">
       <div class="bill-top">
         <div class="bill-icon ${status}">${getBillEmoji(bill.category)}</div>
@@ -1932,7 +1969,7 @@ function renderBills(){
           <div class="bill-meta">${bill.category||'Bill'} · Due ${dueFormatted}</div>
         </div>
         <div class="bill-right">
-          ${bill.amount?`<div class="bill-amount">${fmt(bill.amount)}</div>`:''}
+          ${amountDisplay}
           <div class="bill-due-badge ${status}">${paidThisMonth?'Paid':daysUntil(eff)}</div>
         </div>
         ${dragHandle}
@@ -1950,7 +1987,7 @@ function renderBills(){
   if(dueSoon.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming" style="background:var(--warn)"></span>Due Soon (${dueSoon.length})</div>`;html+=dueSoon.map(b=>billCard(b,'upcoming')).join('');}
   if(upcoming.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming"></span>Upcoming (${upcoming.length})</div>`;html+=upcoming.map(b=>billCard(b,'upcoming')).join('');}
   if(paid.length){html+=`<div class="bills-section-header"><span class="bills-section-dot upcoming"></span>Paid This Month (${paid.length})</div>`;html+=paid.map(b=>billCard(b,'upcoming')).join('');}
-  el.innerHTML=html||'<div class="empty-state"><div class="empty-icon">✅</div>All clear!</div>';
+  el.innerHTML=html||`<div class="empty-state"><div class="empty-icon">✅</div>No outstanding bills.</div>`;
   initDrag('bills-list','bill');
 }
 
