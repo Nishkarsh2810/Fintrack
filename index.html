@@ -501,9 +501,75 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 
 /* ── CUSTOM EMOJI FIELD ── */
 .emoji-input{font-size:22px;text-align:center;width:54px;padding:8px;border-radius:var(--r-xs);border:1.5px solid var(--border2);background:var(--surface2);cursor:text;}
+
+/* ── SMART INSIGHTS ── */
+.insights-row{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;}
+.insight-stat-chip{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 14px;display:flex;align-items:center;gap:9px;font-size:12px;font-weight:500;color:var(--text2);box-shadow:var(--shadow);}
+.insight-stat-chip .isc-icon{font-size:15px;flex-shrink:0;}
+.insight-stat-chip .isc-val{font-family:var(--num);font-weight:600;color:var(--text);}
+.insight-stat-chip.up{border-left:3px solid var(--expense);}
+.insight-stat-chip.down{border-left:3px solid var(--income);}
+.insight-stat-chip.neutral{border-left:3px solid var(--accent);}
+
+/* ── BUDGET ALERT CHIPS (home) ── */
+.budget-alert-chip{border-radius:100px;padding:9px 14px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:7px;margin-bottom:7px;cursor:pointer;transition:opacity .15s;}
+.budget-alert-chip:hover{opacity:.82;}
+.budget-alert-chip.mild{background:var(--warn-dim);border:1px solid rgba(251,191,36,.3);color:var(--warn);}
+.budget-alert-chip.strong{background:var(--expense-dim);border:1px solid rgba(248,113,113,.25);color:var(--expense);}
+.budget-alert-chip.over{background:var(--expense-dim);border:1px solid rgba(248,113,113,.4);color:var(--expense);font-weight:700;}
+
+/* ── SEARCH BAR ── */
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:10px 14px 10px 36px;font-family:var(--font);font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:var(--accent);}
+.search-input::placeholder{color:var(--text3);}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;color:var(--text3);}
+.search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 4px;line-height:1;}
+
+/* ── APP LOCK ── */
+#lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;}
+#lock-screen.hidden{display:none;}
+.lock-logo{font-size:22px;font-weight:700;letter-spacing:-.03em;}
+.lock-logo em{color:var(--accent);font-style:normal;}
+.lock-title{font-size:14px;color:var(--text2);font-weight:500;}
+.pin-dots{display:flex;gap:14px;margin:4px 0;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:background .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,64px);gap:10px;}
+.pin-key{width:64px;height:64px;border-radius:50%;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:20px;font-weight:500;font-family:var(--num);cursor:pointer;transition:background .12s,transform .1s;display:flex;align-items:center;justify-content:center;}
+.pin-key:active{background:var(--surface3);transform:scale(.93);}
+.pin-key.del{font-size:16px;color:var(--text2);}
+.pin-key.empty{border:none;background:transparent;cursor:default;}
+.pin-error{font-size:12px;color:var(--expense);font-weight:600;min-height:16px;}
+
 </style>
 </head>
 <body>
+<!-- APP LOCK SCREEN -->
+<div id="lock-screen" class="hidden">
+  <div class="lock-logo">Fin<em>Track</em></div>
+  <div class="lock-title">Enter your PIN</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key empty"></button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" onclick="pinDel()">⌫</button>
+  </div>
+</div>
+
 <div class="shell">
 
 <!-- ═══ SIDEBAR ═══ -->
@@ -545,6 +611,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
       </div>
     </div>
     <div id="home-alerts"></div>
+    <div id="budget-alerts-home"></div>
+    <div class="insights-row" id="smart-insights"></div>
     <div class="insight-chip"><span>💡</span><span id="insight-text">Add transactions to see insights.</span></div>
     <div class="desktop-two-col">
       <div class="span-full">
@@ -574,6 +642,11 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     </div>
   </div>
   <div class="scroll-area" style="padding-top:4px">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="txn-search" type="text" placeholder="Search by note, category, account…" oninput="renderTxns()"/>
+      <button class="search-clear" id="search-clear-btn" onclick="clearTxnSearch()" style="display:none">✕</button>
+    </div>
     <div class="filter-bar">
       <select class="fchip" id="f-type" onchange="renderTxns()"><option value="all">All</option><option value="expense">Expenses</option><option value="income">Income</option><option value="transfer">Transfers</option></select>
       <select class="fchip" id="f-acc" onchange="renderTxns()"><option value="all">All Accounts</option></select>
@@ -650,6 +723,19 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
       </div>
     </div>
     <div class="settings-section">
+      <div class="settings-section-title">Security</div>
+      <div class="settings-card" id="lock-settings-card">
+        <div class="settings-row" onclick="toggleAppLock()">
+          <div class="settings-row-left"><div class="settings-row-icon">🔒</div><div><div class="settings-row-label">App Lock</div><div class="settings-row-desc" id="lock-desc">Protect app with a 4-digit PIN</div></div></div>
+          <div class="toggle-switch" id="lock-toggle-sw"></div>
+        </div>
+        <div id="lock-pin-actions" style="display:none">
+          <div class="settings-row" onclick="promptSetPin()" style="border-top:1px solid var(--border)"><div class="settings-row-left"><div class="settings-row-icon">🔑</div><div><div class="settings-row-label">Change PIN</div><div class="settings-row-desc">Set a new 4-digit PIN</div></div></div><div class="settings-row-arrow">›</div></div>
+          <div class="settings-row danger" onclick="disableAppLock()" style="border-top:1px solid var(--border)"><div class="settings-row-left"><div class="settings-row-icon">🔓</div><div><div class="settings-row-label">Disable Lock</div><div class="settings-row-desc">Remove PIN protection</div></div></div><div class="settings-row-arrow">›</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
       <div class="settings-section-title">Storage</div>
       <div class="settings-card" id="storage-card"></div>
     </div>
@@ -680,15 +766,15 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     </div>
     <div class="amount-wrap">
       <span class="amount-currency">₹</span>
-      <input class="amount-in" id="t-amount" type="number" placeholder="0" inputmode="decimal" min="0" oninput="checkBalanceHint()"/>
+      <input class="amount-in" id="t-amount" type="text" placeholder="0" inputmode="decimal" oninput="formatAmountInput(this);checkBalanceHint()"/>
     </div>
     <!-- Expense / Income fields -->
     <div id="ei-fields">
       <div class="form-grid">
-        <div class="form-group"><div class="flabel">Category</div><select class="fselect" id="t-cat"></select></div>
+        <div class="form-group"><div class="flabel">Category</div><select class="fselect" id="t-cat" onchange="userChangedCat=true"></select></div>
         <div class="form-group"><div class="flabel">Account</div><select class="fselect" id="t-acc" onchange="checkBalanceHint()"></select></div>
         <div class="form-group full"><div id="balance-hint" class="field-hint" style="display:none"></div></div>
-        <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="t-note" type="text" placeholder="e.g. lunch, salary…"/></div>
+        <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="t-note" type="text" placeholder="e.g. lunch, salary…" oninput="autoCat()"/></div>
         <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="t-date" type="date"/></div>
       </div>
     </div>
@@ -756,7 +842,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     <div class="sheet-title" id="bill-sheet-title">Add Bill</div>
     <div class="form-grid">
       <div class="form-group full"><div class="flabel">Bill Name</div><input class="finput" id="b-name" type="text" placeholder="e.g. Electricity, Netflix, Rent…"/></div>
-      <div class="form-group"><div class="flabel">Amount (₹, optional)</div><input class="finput" id="b-amount" type="number" placeholder="0" min="0" inputmode="decimal"/></div>
+      <div class="form-group"><div class="flabel">Amount (₹, optional)</div><input class="finput" id="b-amount" type="text" placeholder="0" inputmode="decimal" oninput="formatBillAmountInput(this)"/></div>
       <div class="form-group"><div class="flabel">Due Date</div><input class="finput" id="b-due" type="date"/></div>
       <div class="form-group full">
         <div class="flabel">Category (optional)</div>
@@ -1059,7 +1145,7 @@ function openSheet(which){
     if(prefs.lastCat&&prefs.lastType==='expense'){try{document.getElementById('t-cat').value=prefs.lastCat;}catch(e){}}
     const defDate=activeDate||todayStr();
     document.getElementById('t-date').value=defDate; document.getElementById('tr-date').value=defDate;
-    document.getElementById('t-amount').value=''; document.getElementById('t-note').value=''; document.getElementById('tr-note').value='';
+    document.getElementById('t-amount').value=''; document.getElementById('t-note').value=''; document.getElementById('tr-note').value=''; userChangedCat=false;
     hideHints();
     document.getElementById('txn-overlay').classList.add('open');
     setTimeout(()=>{try{document.getElementById('t-amount').focus();}catch(e){}},320);
@@ -1076,7 +1162,7 @@ function openEditSheet(txnId){
   document.getElementById('save-txn-btn').textContent='Update Transaction';
   document.getElementById('type-seg').style.display='none';
   currentType=txn.type;
-  document.getElementById('t-amount').value=txn.amount;
+  const _amtEl=document.getElementById('t-amount'); _amtEl.value=txn.amount; formatAmountInput(_amtEl);
   hideHints();
   if(txn.type==='transfer'){
     document.getElementById('ei-fields').style.display='none';
@@ -1109,12 +1195,50 @@ function hideHints(){
   const th=document.getElementById('transfer-hint'); if(th){th.style.display='none';th.textContent='';}
 }
 
+/* ── AMOUNT INPUT: live Indian comma formatting ── */
+function formatAmountInput(el){
+  const pos = el.selectionStart;
+  const oldLen = el.value.length;
+  let raw = el.value.replace(/,/g,'').replace(/[^0-9.]/g,'');
+  const parts = raw.split('.');
+  if(parts.length > 2) raw = parts[0]+'.'+parts.slice(1).join('');
+  const intPart = parts[0] || '';
+  const decPart = parts[1] !== undefined ? '.'+parts[1] : '';
+  let formatted = '';
+  if(intPart.length > 3){
+    const last3 = intPart.slice(-3);
+    const rest  = intPart.slice(0,-3);
+    formatted   = rest.replace(/\B(?=(\d{2})+(?!\d))/g,',') + ',' + last3;
+  } else { formatted = intPart; }
+  el.value = formatted + decPart;
+  const newLen = el.value.length;
+  el.selectionStart = el.selectionEnd = Math.max(0, pos + (newLen - oldLen));
+}
+function formatBillAmountInput(el){ formatAmountInput(el); }
+function parseAmountInput(){
+  return parseFloat((document.getElementById('t-amount').value||'').replace(/,/g,''))||0;
+}
+
+/* ── CHANGE CREDIT CARD DUE DAY (from Bills section) ── */
+function changeCreditDueDay(accId){
+  const acc = DB.getAccounts().find(a => a.id === accId);
+  if(!acc) return;
+  const current = acc.creditDueDay || '';
+  const input = prompt(`Change due day for "${acc.name}"\nEnter day of month (1–31):`, current);
+  if(input === null) return; // cancelled
+  const day = parseInt(input);
+  if(!day || day < 1 || day > 31) return toast('Enter a valid day (1–31)');
+  DB.updateAccount({ ...acc, creditDueDay: day });
+  renderBills(); renderHome();
+  toast(`✅ Due day set to ${day}th of every month`);
+}
+
 /* ── BALANCE HINT — shown live as user types amount or changes account ── */
 function checkBalanceHint(){
   if(currentType==='transfer'){checkTransferHint();return;}
   const bh=document.getElementById('balance-hint'); if(!bh) return;
   const accId=document.getElementById('t-acc').value;
-  const amount=parseFloat(document.getElementById('t-amount').value)||0;
+  const amount=parseAmountInput();
   if(!accId||currentType!=='expense'){bh.style.display='none';return;}
   const bal=DB.accBal(accId);
   if(DB.isCredit(accId)){
@@ -1171,7 +1295,7 @@ function syncToDropdown(){
 
 /* ── SAVE TRANSACTION ── */
 function saveTxn(){
-  const amount=parseFloat(document.getElementById('t-amount').value);
+  const amount=parseAmountInput();
   if(!amount||amount<=0) return toast('Enter a valid amount ⚡');
 
   if(currentType==='transfer'){
@@ -1335,7 +1459,7 @@ function openEditBillSheet(billId){
   document.getElementById('edit-bill-id').value = billId;
   document.getElementById('bill-sheet-title').textContent = 'Edit Bill';
   document.getElementById('b-name').value = bill.name;
-  document.getElementById('b-amount').value = bill.amount || '';
+  const _bAmtEl=document.getElementById('b-amount'); _bAmtEl.value=bill.amount||''; if(bill.amount) formatAmountInput(_bAmtEl);
   document.getElementById('b-due').value = bill.dueDate;
   document.getElementById('b-cat').value = bill.category || '';
   document.getElementById('recurring-toggle-switch').classList.toggle('on', billRecurring);
@@ -1348,7 +1472,7 @@ function saveBill(){
   if(!name) return toast('Enter a bill name');
   const dueDate = document.getElementById('b-due').value;
   if(!dueDate) return toast('Due date is required');
-  const amount   = parseFloat(document.getElementById('b-amount').value) || 0;
+  const amount   = parseFloat((document.getElementById('b-amount').value||'').replace(/,/g,'')) || 0;
   const category = document.getElementById('b-cat').value;
   const editId   = document.getElementById('edit-bill-id').value;
   // For recurring bills store the day-of-month from the chosen date
@@ -1723,7 +1847,9 @@ function renderDashboardNumbers(){
 function renderHome(){
   renderDashboardNumbers();
   renderHomeAlerts();
+  renderBudgetAlerts();
   renderInsight();
+  renderSmartInsights();
   renderHomeAccs();
   renderHomeFeed();
   renderHomeBudgetPreview();
@@ -1775,6 +1901,168 @@ function renderInsight(){
   const mExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
   if(mInc>0){const r=Math.round(((mInc-mExp)/mInc)*100);el.textContent=r>=0?`Saving ${r}% of income this month 🎯`:`Overspent by ${fmt(mExp-mInc)} this month`;}
   else el.textContent='No spending today — stay mindful! 🧘';
+  renderSmartInsights();
+}
+
+/* ── PART 1: SMART INSIGHTS ── */
+function renderSmartInsights(){
+  const el=document.getElementById('smart-insights'); if(!el) return;
+  const txns=DB.getTxns();
+  const now=new Date();
+  const ym=thisYM();
+  // Previous month
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevYM=prevDate.toISOString().substring(0,7);
+  const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
+  const prevExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(prevYM));
+  const curTotal=curExp.reduce((s,t)=>s+t.amount,0);
+  const prevTotal=prevExp.reduce((s,t)=>s+t.amount,0);
+  if(!curTotal){el.innerHTML='';return;}
+  let chips='';
+  // Month vs month
+  if(prevTotal>0){
+    const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
+    const up=diff>0;
+    const sign=up?'+':'';
+    chips+=`<div class="insight-stat-chip ${up?'up':'down'}"><span class="isc-icon">${up?'📈':'📉'}</span><span>${sign}${diff}% vs last month &nbsp;·&nbsp; <span class="isc-val">${fmt(curTotal)}</span> spent</span></div>`;
+  } else {
+    chips+=`<div class="insight-stat-chip neutral"><span class="isc-icon">📊</span><span>Spent <span class="isc-val">${fmt(curTotal)}</span> this month</span></div>`;
+  }
+  // Top category
+  const catMap={};
+  curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+  const topCat=Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+  if(topCat) chips+=`<div class="insight-stat-chip neutral"><span class="isc-icon">🏆</span><span>Top: <strong>${getCatName(topCat[0])}</strong> &nbsp;·&nbsp; <span class="isc-val">${fmt(topCat[1])}</span></span></div>`;
+  // Biggest single expense
+  const biggest=curExp.reduce((max,t)=>t.amount>max.amount?t:max,{amount:0});
+  if(biggest.amount>0){
+    const note=biggest.note?` (${biggest.note})`:'';
+    chips+=`<div class="insight-stat-chip up"><span class="isc-icon">💸</span><span>Biggest: <span class="isc-val">${fmt(biggest.amount)}</span>${note} · ${getCatName(biggest.category)}</span></div>`;
+  }
+  el.innerHTML=chips;
+}
+
+/* ── PART 2: BUDGET ALERTS (home) ── */
+function renderBudgetAlerts(){
+  const el=document.getElementById('budget-alerts-home'); if(!el) return;
+  const b=DB.getBudgets(); const cats=b.cats||{};
+  if(!Object.keys(cats).length){el.innerHTML='';return;}
+  const ym=thisYM(); const catMap=DB.monthExpByCat(ym);
+  let html='';
+  Object.entries(cats).forEach(([cat,limit])=>{
+    const spent=catMap[cat]||0; if(!limit) return;
+    const pct=Math.round((spent/limit)*100);
+    if(pct>=100) html+=`<div class="budget-alert-chip over" onclick="nav('budget')">🔴 ${getCatName(cat)} exceeded (${fmt(spent)}/${fmt(limit)})</div>`;
+    else if(pct>=80) html+=`<div class="budget-alert-chip strong" onclick="nav('budget')">⚠️ ${getCatName(cat)} ${pct}% used</div>`;
+    else if(pct>=50) html+=`<div class="budget-alert-chip mild" onclick="nav('budget')">🟡 ${getCatName(cat)} ${pct}% used</div>`;
+  });
+  el.innerHTML=html;
+  el.style.marginBottom=html?'4px':'0';
+}
+
+/* ── PART 3: SEARCH HELPERS ── */
+function clearTxnSearch(){
+  const s=document.getElementById('txn-search'); if(s) s.value='';
+  const b=document.getElementById('search-clear-btn'); if(b) b.style.display='none';
+  renderTxns();
+}
+
+/* ── PART 4: AUTO CATEGORY ── */
+const AUTO_CAT_MAP = [
+  {keys:['petrol','diesel','fuel','cng','gas station'],cat:'🚗 Transport'},
+  {keys:['zomato','swiggy','lunch','dinner','breakfast','cafe','coffee','restaurant','food','biryani','pizza','burger'],cat:'🍽️ Food'},
+  {keys:['uber','ola','rapido','auto','cab','taxi','metro','bus','train','flight','irctc'],cat:'🚗 Transport'},
+  {keys:['netflix','hotstar','amazon prime','spotify','youtube','subscription'],cat:'🎬 Entertainment'},
+  {keys:['movie','cinema','pvr','inox'],cat:'🎬 Entertainment'},
+  {keys:['amazon','flipkart','myntra','shopping','clothes','shirt','shoes'],cat:'🛍️ Shopping'},
+  {keys:['doctor','hospital','medicine','pharmacy','apollo','medplus','health'],cat:'💊 Health'},
+  {keys:['school','college','tuition','course','book','education'],cat:'📚 Education'},
+  {keys:['electricity','water','wifi','internet','broadband','phone','mobile','recharge','bill'],cat:'💡 Bills'},
+  {keys:['rent','housing','maintenance','society'],cat:'🏠 Rent'},
+  {keys:['salon','haircut','spa','gym'],cat:'✂️ Personal'},
+];
+let userChangedCat=false;
+function autoCat(){
+  if(userChangedCat) return;
+  const note=document.getElementById('t-note')?.value?.toLowerCase()||'';
+  if(!note) return;
+  for(const rule of AUTO_CAT_MAP){
+    if(rule.keys.some(k=>note.includes(k))){
+      const sel=document.getElementById('t-cat');
+      if(sel&&sel.value!==rule.cat){
+        // Only set if that option exists
+        const opt=[...sel.options].find(o=>o.value===rule.cat);
+        if(opt){ sel.value=rule.cat; return; }
+      }
+      return;
+    }
+  }
+}
+
+/* ── PART 5: APP LOCK ── */
+let pinBuffer='';
+function initAppLock(){
+  const locked=localStorage.getItem('ft6_lock')==='1';
+  const pin=localStorage.getItem('ft6_pin')||'';
+  if(locked&&pin){
+    document.getElementById('lock-screen').classList.remove('hidden');
+  }
+  renderLockSettings();
+}
+function pinKey(d){
+  if(pinBuffer.length>=4) return;
+  pinBuffer+=d;
+  updatePinDots();
+  if(pinBuffer.length===4) setTimeout(checkPin,120);
+}
+function pinDel(){
+  pinBuffer=pinBuffer.slice(0,-1);
+  updatePinDots();
+}
+function updatePinDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('pd'+i)?.classList.toggle('filled',i<pinBuffer.length);
+  }
+}
+function checkPin(){
+  const stored=localStorage.getItem('ft6_pin')||'';
+  if(pinBuffer===stored){
+    document.getElementById('lock-screen').classList.add('hidden');
+    document.getElementById('pin-error').textContent='';
+    pinBuffer=''; updatePinDots();
+  } else {
+    document.getElementById('pin-error').textContent='Incorrect PIN. Try again.';
+    pinBuffer=''; updatePinDots();
+    // Shake dots
+    const dots=document.getElementById('pin-dots');
+    dots.style.transform='translateX(-8px)';
+    setTimeout(()=>{dots.style.transition='transform .15s';dots.style.transform='translateX(8px)';},80);
+    setTimeout(()=>{dots.style.transform='';setTimeout(()=>{dots.style.transition='';},150);},200);
+  }
+}
+function toggleAppLock(){
+  const locked=localStorage.getItem('ft6_lock')==='1';
+  if(locked){disableAppLock();}else{promptSetPin();}
+}
+function promptSetPin(){
+  const pin=prompt('Set a 4-digit PIN (numbers only):');
+  if(pin===null) return;
+  if(!/^\d{4}$/.test(pin)) return toast('PIN must be exactly 4 digits');
+  localStorage.setItem('ft6_pin',pin);
+  localStorage.setItem('ft6_lock','1');
+  renderLockSettings(); toast('🔒 App Lock enabled');
+}
+function disableAppLock(){
+  showConfirm('🔓','Disable App Lock?','Your PIN will be removed.','Disable',()=>{
+    localStorage.removeItem('ft6_pin'); localStorage.removeItem('ft6_lock');
+    renderLockSettings(); toast('🔓 App Lock disabled');
+  });
+}
+function renderLockSettings(){
+  const locked=localStorage.getItem('ft6_lock')==='1';
+  const sw=document.getElementById('lock-toggle-sw'); if(sw) sw.classList.toggle('on',locked);
+  const desc=document.getElementById('lock-desc'); if(desc) desc.textContent=locked?'PIN is set — app is locked on open':'Protect app with a 4-digit PIN';
+  const actions=document.getElementById('lock-pin-actions'); if(actions) actions.style.display=locked?'':'none';
 }
 
 function renderHomeAccs(){
@@ -1834,6 +2122,16 @@ function renderTxns(){
   if(fa!=='all')txns=txns.filter(t=>t.accountId===fa||t.toAccountId===fa);
   if(fm!=='all')txns=txns.filter(t=>t.date.startsWith(fm));
   if(activeDate) txns=txns.filter(t=>t.date===activeDate);
+  // Search
+  const sq=(document.getElementById('txn-search')?.value||'').toLowerCase().trim();
+  const clearBtn=document.getElementById('search-clear-btn'); if(clearBtn) clearBtn.style.display=sq?'':'none';
+  if(sq){
+    const accs=DB.getAccounts();
+    txns=txns.filter(t=>{
+      const accName=(accs.find(a=>a.id===t.accountId)?.name||'').toLowerCase();
+      return (t.note||'').toLowerCase().includes(sq)||(t.category||'').toLowerCase().includes(sq)||accName.includes(sq);
+    });
+  }
   document.getElementById('txns-feed').innerHTML=txnFeedHTML(txns,true);
   updateDateChips();
 }
@@ -1861,7 +2159,7 @@ function renderBudget(){
     const cp=catLimit>0?Math.min((catSpent/catLimit)*100,100):0;
     const cf=cp>=100?'over':cp>=80?'warn':'';
     const isCustom=customCats.includes(cat);
-    return `<div class="cat-budget-row" data-cat="${cat.replace(/"/g,'&quot;')}">
+    const rowBorder=catLimit>0?(cp>=100?'border-left:3px solid var(--expense);':cp>=80?'border-left:3px solid var(--warn);':cp>=50?'border-left:3px solid rgba(251,191,36,.4);':''):'';    return `<div class="cat-budget-row" data-cat="${cat.replace(/"/g,'&quot;')}" style="${rowBorder}">
       <div class="cat-budget-header">
         <div class="cat-budget-left"><span style="font-size:16px">${getEmoji(cat)}</span><div class="cat-budget-name">${getCatName(cat)}</div></div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -1955,7 +2253,8 @@ function renderBills(){
     const isVirtual=bill._virtual;
     const editDel=!isVirtual?`
       <button class="bill-btn edit" onclick="openEditBillSheet('${bill.id}')">Edit</button>
-      <button class="bill-btn del" onclick="delBill('${bill.id}')">Delete</button>`:'';
+      <button class="bill-btn del" onclick="delBill('${bill.id}')">Delete</button>`
+      : (bill._creditAccId ? `<button class="bill-btn edit" onclick="changeCreditDueDay('${bill._creditAccId}')">📅 Change Due Day</button>` : '');
     const dragHandle=!isVirtual?`<div class="drag-handle" data-drag-type="bill" data-drag-id="${bill.id}" title="Drag to reorder">≡</div>`:'';
     // For credit card bills: always show amount (even ₹0 means card is cleared)
     const amountDisplay = bill._virtual
@@ -1993,6 +2292,7 @@ function renderBills(){
 
 /* ── RENDER: SETTINGS ── */
 function renderSettings(){
+  renderLockSettings();
   const t=document.documentElement.getAttribute('data-theme')||'dark';
   document.getElementById('theme-dark')?.classList.toggle('active',t==='dark');
   document.getElementById('theme-light')?.classList.toggle('active',t==='light');
@@ -2216,6 +2516,7 @@ const FS = {
 /* ── INIT ── */
 setTheme(localStorage.getItem('ft6_theme') || 'dark');
 updateDateChips();
+initAppLock();
 
 // Start real-time listeners. renderHome() is called inside once all docs load.
 // If Firebase is offline, falls back to localStorage data and renders anyway.
