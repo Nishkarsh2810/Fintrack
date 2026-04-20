@@ -819,7 +819,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     <!-- Expense / Income fields -->
     <div id="ei-fields">
       <div class="form-grid">
-        <div class="form-group"><div class="flabel">Category</div><select class="fselect" id="t-cat" onchange="userChangedCat=true"></select></div>
+        <div class="form-group"><div class="flabel">Category</div><select class="fselect" id="t-cat"></select></div>
         <div class="form-group"><div class="flabel">Account</div><select class="fselect" id="t-acc" onchange="checkBalanceHint()"></select></div>
         <div class="form-group full"><div id="balance-hint" class="field-hint" style="display:none"></div></div>
         <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="t-note" type="text" placeholder="e.g. lunch, salary…" oninput="autoCat()"/></div>
@@ -924,7 +924,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 <div class="overlay" id="cat-overlay" onclick="sheetClickOut('cat',event)">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">Edit Category</div>
+    <div class="sheet-title" id="cat-sheet-title">Edit Category</div>
     <div class="form-grid">
       <div class="form-group full"><div class="flabel">Category Name</div><input class="finput" id="cat-edit-name" type="text" placeholder="e.g. 🎮 Gaming"/><div class="field-hint">Start with an emoji for best results.</div></div>
       <div class="form-group full"><div class="flabel">Monthly Budget Limit (₹)</div><input class="finput" id="cat-edit-budget" type="number" placeholder="Leave empty to remove limit" min="0" inputmode="decimal"/></div>
@@ -968,6 +968,23 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- NEW CATEGORY SHEET (from transaction) -->
+<div class="overlay" id="newcat-overlay" onclick="sheetClickOut('newcat',event)">
+  <div class="sheet" onclick="event.stopPropagation()" style="max-height:55vh">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="newcat-title">New Category</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <div class="flabel">Category Name (start with emoji)</div>
+        <input class="finput" id="newcat-name" type="text" placeholder="e.g. 📈 Dividends or 💰 Savings"/>
+        <div class="field-hint">Type an emoji followed by a space and the name.</div>
+      </div>
+    </div>
+    <input type="hidden" id="newcat-type" value="expense"/>
+    <button class="save-btn" onclick="saveInlineCat()">Add &amp; Select</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -1048,30 +1065,35 @@ const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 I
 const getAllExpCats = () => [...DEFAULT_EXP_CATS,...DB.getCustomCats()];
 const getAllIncCats = () => DEFAULT_INC_CATS;
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
-// Robust emoji detection: does the string start with a non-ASCII emoji char?
+// Robust emoji detection + auto-sanitize stored values
 function startsWithEmoji(str){
   if(!str) return false;
-  const cp = str.codePointAt(0);
-  return cp > 127; // any non-ASCII lead char is treated as emoji/icon
+  return str.codePointAt(0) > 127;
+}
+// Convert any Python-escaped \Uxxxxxxxx literals to real emoji chars
+function sanitizeCat(cat){
+  if(!cat) return cat;
+  return cat.replace(/\\U([0-9a-fA-F]{8})/g, function(_,h){
+    try{ return String.fromCodePoint(parseInt(h,16)); } catch(e){ return ''; }
+  });
 }
 const getEmoji = cat => {
-  if(!cat) return '\U0001f4e6';
-  const t = cat.trim();
+  if(!cat) return '📦';
+  const t=sanitizeCat(cat).trim();
   if(startsWithEmoji(t)){
-    // Find first space after the emoji cluster
-    const spaceIdx = t.search(/\s/);
-    return spaceIdx > 0 ? t.slice(0, spaceIdx) : t;
+    const spaceIdx=t.search(/\s/);
+    return spaceIdx>0?t.slice(0,spaceIdx):t;
   }
-  return '\U0001f4c2';
+  return '📂';
 };
 const getCatName = cat => {
   if(!cat) return '';
-  const t = cat.trim();
+  const t=sanitizeCat(cat).trim();
   if(startsWithEmoji(t)){
-    const spaceIdx = t.search(/\s/);
-    return spaceIdx > 0 ? t.slice(spaceIdx + 1).trim() : t;
+    const spaceIdx=t.search(/\s/);
+    return spaceIdx>0?t.slice(spaceIdx+1).trim():t;
   }
-  return t; // no emoji prefix — full string is the name
+  return t;
 };
 
 /* ── BILL HELPERS ── */
@@ -1245,6 +1267,7 @@ function openEditSheet(txnId){
     document.getElementById('ei-fields').style.display='block';
     document.getElementById('tr-fields').style.display='none';
     fillCatSelect(txn.type); fillAccSelect('t-acc');
+    userChangedCat=true; // keep existing cat during edit
     try{document.getElementById('t-cat').value=txn.category;document.getElementById('t-acc').value=txn.accountId;}catch(e){}
     document.getElementById('t-note').value=txn.note||''; document.getElementById('t-date').value=txn.date;
   }
@@ -1349,7 +1372,16 @@ function checkTransferHint(){
 function fillCatSelect(type){
   const s=document.getElementById('t-cat');
   const cats=type==='income'?getAllIncCats():getAllExpCats();
-  s.innerHTML=cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  s.innerHTML=cats.map(c=>`<option value="${c}">${c}</option>`).join('')
+    +'<option value="__new__">+ Add New Category</option>';
+  s.onchange=function(){
+    if(s.value==='__new__'){
+      userChangedCat=false;
+      openInlineCatCreate(type);
+    } else {
+      userChangedCat=true;
+    }
+  };
 }
 function fillAccSelect(selId){
   const s=document.getElementById(selId); if(!s) return;
@@ -1365,9 +1397,22 @@ function syncToDropdown(){
 }
 
 /* ── SAVE TRANSACTION ── */
+// Compute balance freed on accId when removing oldTxn
+function txnRelease(oldTxn, accId){
+  if(!oldTxn) return 0;
+  const isFrom=oldTxn.accountId===accId, isTo=oldTxn.toAccountId===accId;
+  if(!isFrom&&!isTo) return 0;
+  if(oldTxn.type==='income')   return isFrom?-oldTxn.amount:0;
+  if(oldTxn.type==='expense')  return isFrom? oldTxn.amount:0;
+  if(oldTxn.type==='transfer') return isFrom? oldTxn.amount:isTo?-oldTxn.amount:0;
+  return 0;
+}
 function saveTxn(){
   const amount=parseAmountInput();
   if(!amount||amount<=0) return toast('Enter a valid amount ⚡');
+
+  // Fetch old txn so we can reverse its balance effect during edit
+  const oldTxn=editingTxnId?DB.getTxns().find(t=>t.id===editingTxnId):null;
 
   if(currentType==='transfer'){
     const from=document.getElementById('t-from').value;
@@ -1377,16 +1422,14 @@ function saveTxn(){
     if(!from||!to) return toast('Select both accounts');
     if(from===to)  return toast('From and To must differ');
     if(!date)      return toast('Pick a date');
-    // Balance check for non-credit source
     if(!DB.isCredit(from)){
-      const bal=DB.accBal(from);
-      if(amount>bal) return toast(`Insufficient balance. Available: ${fmt(bal)}`);
+      const effectiveBal=DB.accBal(from)+txnRelease(oldTxn,from);
+      if(amount>effectiveBal) return toast('Insufficient balance. Available: '+fmt(effectiveBal));
     }
     const obj={type:'transfer',amount,accountId:from,toAccountId:to,note,date,category:'🔄 Transfer'};
     if(editingTxnId){obj.id=editingTxnId;DB.updateTxn(obj);toast('✅ Transfer updated');}
     else{
       DB.addTxn(obj);
-      // Auto-mark credit card bill paid when transferring to a credit account
       autoMarkCreditBillPaid(to);
       toast('🔄 Transfer saved');
     }
@@ -1400,10 +1443,10 @@ function saveTxn(){
   if(!accId) return toast('Select an account');
   if(!date)  return toast('Pick a date');
 
-  // ── BALANCE GUARD: block expense on non-credit account if balance would go negative ──
-  if(currentType==='expense' && !DB.isCredit(accId) && !editingTxnId){
-    const bal=DB.accBal(accId);
-    if(amount>bal) return toast(`Not enough balance in this account (${fmt(bal)} available)`);
+  // Balance guard: effective balance = current + what the old txn was holding
+  if(currentType==='expense' && !DB.isCredit(accId)){
+    const effectiveBal=DB.accBal(accId)+txnRelease(oldTxn,accId);
+    if(amount>effectiveBal) return toast('Not enough balance ('+fmt(effectiveBal)+' available)');
   }
 
   const obj={type:currentType,amount,category:cat,accountId:accId,note,date};
@@ -1839,8 +1882,11 @@ function delBill(id){
 
 function openCatEdit(cat){
   const b=DB.getBudgets();
+  const titleEl=document.getElementById('cat-sheet-title');
+  if(titleEl) titleEl.textContent=isDefaultCat(cat)?'Set Budget Limit':'Edit Category';
   document.getElementById('cat-edit-original').value=cat;
-  document.getElementById('cat-edit-name').value=cat;
+  // Show sanitized name (strip any Python unicode escape artifacts)
+  document.getElementById('cat-edit-name').value=sanitizeCat(cat);
   document.getElementById('cat-edit-budget').value=(b.cats&&b.cats[cat])?b.cats[cat]:'';
   document.getElementById('cat-overlay').classList.add('open');
   setTimeout(()=>{try{document.getElementById('cat-edit-name').focus();}catch(e){}},320);
@@ -1898,6 +1944,46 @@ function addCustomCat(){
   if(isDup) return toast('Category already exists');
   const customs=DB.getCustomCats(); customs.push(val); DB.saveCustomCats(customs);
   input.value=''; renderBudget(); toast('✅ Category added');
+}
+
+/* ── INLINE CATEGORY CREATE (opened from transaction sheet) ── */
+function openInlineCatCreate(type){
+  document.getElementById('newcat-type').value=type||'expense';
+  document.getElementById('newcat-name').value='';
+  const lbl=type==='income'?'New Income Category':'New Expense Category';
+  document.getElementById('newcat-title').textContent=lbl;
+  document.getElementById('newcat-overlay').classList.add('open');
+  setTimeout(()=>{try{document.getElementById('newcat-name').focus();}catch(e){}},320);
+}
+function saveInlineCat(){
+  const val=document.getElementById('newcat-name').value.trim();
+  if(!val) return toast('Enter a category name');
+  const type=document.getElementById('newcat-type').value;
+  const all=[...DEFAULT_EXP_CATS,...DEFAULT_INC_CATS,...DB.getCustomCats()];
+  const valName=getCatName(val).toLowerCase()||val.toLowerCase();
+  const existing=all.find(c=>(getCatName(c).toLowerCase()||c.toLowerCase())===valName);
+  if(existing){
+    // Already exists — select it
+    fillCatSelect(type);
+    const sel=document.getElementById('t-cat');
+    const opt=[...sel.options].find(o=>o.value===existing);
+    if(opt) sel.value=existing;
+    userChangedCat=true;
+    closeSheet('newcat');
+    toast('Already exists — selected for you');
+    return;
+  }
+  const customs=DB.getCustomCats();
+  customs.push(val);
+  DB.saveCustomCats(customs);
+  fillCatSelect(type);
+  const sel=document.getElementById('t-cat');
+  const opt=[...sel.options].find(o=>o.value===val);
+  if(opt) sel.value=val;
+  userChangedCat=true;
+  closeSheet('newcat');
+  renderBudget();
+  toast('✅ Category added');
 }
 
 /* ── REFRESH ──
