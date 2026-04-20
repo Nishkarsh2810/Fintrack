@@ -527,46 +527,94 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 .search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 4px;line-height:1;}
 
 /* ── APP LOCK ── */
-#lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;}
+#lock-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top,0) 28px env(safe-area-inset-bottom,0);
+}
 #lock-screen.hidden{display:none;}
-.lock-logo{font-size:22px;font-weight:700;letter-spacing:-.03em;}
+.lock-top{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:44px;}
+.lock-logo{font-size:32px;font-weight:700;letter-spacing:-.04em;}
 .lock-logo em{color:var(--accent);font-style:normal;}
-.lock-title{font-size:14px;color:var(--text2);font-weight:500;}
-.pin-dots{display:flex;gap:14px;margin:4px 0;}
-.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:background .15s;}
-.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
-.pin-keypad{display:grid;grid-template-columns:repeat(3,64px);gap:10px;}
-.pin-key{width:64px;height:64px;border-radius:50%;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:20px;font-weight:500;font-family:var(--num);cursor:pointer;transition:background .12s,transform .1s;display:flex;align-items:center;justify-content:center;}
-.pin-key:active{background:var(--surface3);transform:scale(.93);}
-.pin-key.del{font-size:16px;color:var(--text2);}
-.pin-key.empty{border:none;background:transparent;cursor:default;}
-.pin-error{font-size:12px;color:var(--expense);font-weight:600;min-height:16px;}
+.lock-subtitle{font-size:13px;color:var(--text3);font-weight:500;letter-spacing:.03em;text-transform:uppercase;margin-top:2px;}
+.lock-title{font-size:16px;color:var(--text2);font-weight:500;margin-top:20px;}
+.pin-dots{display:flex;gap:22px;margin-top:16px;}
+.pin-dot{
+  width:20px;height:20px;border-radius:50%;
+  border:2px solid var(--border2);background:transparent;
+  transition:background .12s,border-color .12s,transform .1s;
+}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+.pin-error{
+  font-size:13px;color:var(--expense);font-weight:600;
+  min-height:20px;text-align:center;
+  margin-top:14px;margin-bottom:28px;
+}
+.pin-keypad{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:16px;width:100%;max-width:320px;
+}
+.pin-key{
+  aspect-ratio:1/1;
+  border-radius:50%;
+  border:1.5px solid var(--border2);
+  background:var(--surface);
+  color:var(--text);
+  font-size:26px;font-weight:500;font-family:var(--num);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .08s,border-color .08s,transform .07s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;touch-action:manipulation;
+  min-height:70px;
+}
+.pin-key:active,.pin-key.pressed{
+  background:var(--surface3);
+  border-color:var(--accent-border);
+  transform:scale(.88);
+}
+.pin-key.del{font-size:22px;color:var(--text2);background:transparent;border-color:transparent;}
+.pin-key.del:active,.pin-key.del.pressed{background:var(--surface2);border-color:var(--border);}
+.pin-key.empty{border:none;background:transparent;cursor:default;pointer-events:none;}
+@media(min-width:390px){
+  .pin-keypad{max-width:360px;gap:18px;}
+  .pin-key{font-size:28px;min-height:76px;}
+}
+@media(min-height:780px){
+  .lock-top{margin-bottom:56px;}
+  .pin-keypad{gap:20px;}
+}
 
 </style>
 </head>
 <body>
 <!-- APP LOCK SCREEN -->
 <div id="lock-screen" class="hidden">
-  <div class="lock-logo">Fin<em>Track</em></div>
-  <div class="lock-title">Enter your PIN</div>
-  <div class="pin-dots" id="pin-dots">
-    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  <div class="lock-top">
+    <div class="lock-logo">Fin<em>Track</em></div>
+    <div class="lock-subtitle">Personal Finance</div>
+    <div class="lock-title">Enter your PIN</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
   </div>
   <div class="pin-error" id="pin-error"></div>
   <div class="pin-keypad">
-    <button class="pin-key" onclick="pinKey('1')">1</button>
-    <button class="pin-key" onclick="pinKey('2')">2</button>
-    <button class="pin-key" onclick="pinKey('3')">3</button>
-    <button class="pin-key" onclick="pinKey('4')">4</button>
-    <button class="pin-key" onclick="pinKey('5')">5</button>
-    <button class="pin-key" onclick="pinKey('6')">6</button>
-    <button class="pin-key" onclick="pinKey('7')">7</button>
-    <button class="pin-key" onclick="pinKey('8')">8</button>
-    <button class="pin-key" onclick="pinKey('9')">9</button>
-    <button class="pin-key empty"></button>
-    <button class="pin-key" onclick="pinKey('0')">0</button>
-    <button class="pin-key del" onclick="pinDel()">⌫</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('1')">1</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('2')">2</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('3')">3</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('4')">4</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('5')">5</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('6')">6</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('7')">7</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('8')">8</button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('9')">9</button>
+    <button class="pin-key empty" disabled></button>
+    <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" ontouchstart="pinKeyTouch(this)" onclick="pinDel()">⌫</button>
   </div>
 </div>
 
@@ -1000,8 +1048,31 @@ const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 I
 const getAllExpCats = () => [...DEFAULT_EXP_CATS,...DB.getCustomCats()];
 const getAllIncCats = () => DEFAULT_INC_CATS;
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
-const getEmoji   = cat => (cat||'').split(' ')[0]||'📦';
-const getCatName = cat => (cat||'').split(' ').slice(1).join(' ')||cat||'';
+// Robust emoji detection: does the string start with a non-ASCII emoji char?
+function startsWithEmoji(str){
+  if(!str) return false;
+  const cp = str.codePointAt(0);
+  return cp > 127; // any non-ASCII lead char is treated as emoji/icon
+}
+const getEmoji = cat => {
+  if(!cat) return '\U0001f4e6';
+  const t = cat.trim();
+  if(startsWithEmoji(t)){
+    // Find first space after the emoji cluster
+    const spaceIdx = t.search(/\s/);
+    return spaceIdx > 0 ? t.slice(0, spaceIdx) : t;
+  }
+  return '\U0001f4c2';
+};
+const getCatName = cat => {
+  if(!cat) return '';
+  const t = cat.trim();
+  if(startsWithEmoji(t)){
+    const spaceIdx = t.search(/\s/);
+    return spaceIdx > 0 ? t.slice(spaceIdx + 1).trim() : t;
+  }
+  return t; // no emoji prefix — full string is the name
+};
 
 /* ── BILL HELPERS ── */
 
@@ -1780,15 +1851,31 @@ function saveCatEdit(){
   const newName=document.getElementById('cat-edit-name').value.trim();
   const budgetVal=parseFloat(document.getElementById('cat-edit-budget').value)||0;
   if(!newName) return toast('Enter a category name');
+
+  // Budget update
   const b=DB.getBudgets(); if(!b.cats)b.cats={};
-  if(budgetVal>0)b.cats[newName]=budgetVal; else delete b.cats[newName];
-  if(newName!==original){delete b.cats[original];}
+  if(budgetVal>0) b.cats[newName]=budgetVal; else delete b.cats[newName];
+  if(newName!==original){ delete b.cats[original]; }
   DB.saveBudgets(b);
-  const customs=DB.getCustomCats(); const idx=customs.indexOf(original);
-  if(idx>=0){customs[idx]=newName;DB.saveCustomCats(customs);}
+
+  // Custom cats list update — only touch if name actually changed
   if(newName!==original){
-    const txns=DB.getTxns().map(t=>t.category===original?{...t,category:newName}:t); DB.saveTxns(txns);
-    if(isDefaultCat(original)&&!customs.includes(newName)){customs.push(newName);DB.saveCustomCats(customs);}
+    const txns=DB.getTxns().map(t=>t.category===original?{...t,category:newName}:t);
+    DB.saveTxns(txns);
+    const customs=DB.getCustomCats();
+    const isOldCustom=customs.includes(original);
+    if(isOldCustom){
+      // Rename in-place — no duplication
+      const idx=customs.indexOf(original);
+      customs[idx]=newName;
+      DB.saveCustomCats(customs);
+    } else if(isDefaultCat(original)){
+      // Renamed a default cat → add new name as custom if not already there
+      if(!customs.includes(newName)){
+        customs.push(newName);
+        DB.saveCustomCats(customs);
+      }
+    }
   }
   closeSheet('cat'); renderBudget(); renderHome(); toast('✅ Category updated');
 }
@@ -1805,7 +1892,10 @@ function addCustomCat(){
   const input=document.getElementById('new-cat-input'); const val=input.value.trim();
   if(!val) return toast('Enter a category name');
   const all=[...DEFAULT_EXP_CATS,...DB.getCustomCats()];
-  if(all.includes(val)) return toast('Category already exists');
+  // Deduplicate by comparing display names (case-insensitive)
+  const valName=getCatName(val).toLowerCase()||val.toLowerCase();
+  const isDup=all.some(c=>(getCatName(c).toLowerCase()||c.toLowerCase())===valName);
+  if(isDup) return toast('Category already exists');
   const customs=DB.getCustomCats(); customs.push(val); DB.saveCustomCats(customs);
   input.value=''; renderBudget(); toast('✅ Category added');
 }
@@ -2001,6 +2091,12 @@ function autoCat(){
 
 /* ── PART 5: APP LOCK ── */
 let pinBuffer='';
+// Touch feedback: visual press + optional haptic
+function pinKeyTouch(el){
+  el.classList.add('pressed');
+  setTimeout(()=>el.classList.remove('pressed'), 150);
+  if(navigator.vibrate) navigator.vibrate(10);
+}
 function initAppLock(){
   const locked=localStorage.getItem('ft6_lock')==='1';
   const pin=localStorage.getItem('ft6_pin')||'';
@@ -2033,11 +2129,20 @@ function checkPin(){
   } else {
     document.getElementById('pin-error').textContent='Incorrect PIN. Try again.';
     pinBuffer=''; updatePinDots();
-    // Shake dots
+    // Shake animation for wrong PIN
     const dots=document.getElementById('pin-dots');
-    dots.style.transform='translateX(-8px)';
-    setTimeout(()=>{dots.style.transition='transform .15s';dots.style.transform='translateX(8px)';},80);
-    setTimeout(()=>{dots.style.transform='';setTimeout(()=>{dots.style.transition='';},150);},200);
+    const shakeSteps=[
+      [0,   'translateX(-10px)'],
+      [80,  'translateX(10px)'],
+      [160, 'translateX(-7px)'],
+      [240, 'translateX(7px)'],
+      [320, 'translateX(0)'],
+    ];
+    dots.style.transition='transform .07s';
+    shakeSteps.forEach(([delay,val])=>{
+      setTimeout(()=>{dots.style.transform=val;},delay);
+    });
+    setTimeout(()=>{dots.style.transition='';},400);
   }
 }
 function toggleAppLock(){
