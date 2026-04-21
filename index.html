@@ -483,7 +483,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 .drag-over{border-top:2px solid var(--accent)!important;}
 
 /* ── ALERT CHIP: DUE SOON ── */
-.alert-chip.dueSoon{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);}
+.alert-chip.dueSoon{background:var(--transfer-dim);border:1px solid rgba(96,165,250,0.25);color:var(--transfer);}
 
 /* ── BILLS NAV BADGE ── */
 .nav-btn{position:relative;}
@@ -2097,7 +2097,6 @@ function renderInsight(){
   const mExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
   if(mInc>0){const r=Math.round(((mInc-mExp)/mInc)*100);el.textContent=r>=0?`Saving ${r}% of income this month 🎯`:`Overspent by ${fmt(mExp-mInc)} this month`;}
   else el.textContent='No spending today — stay mindful! 🧘';
-  renderSmartInsights();
 }
 
 /* ── PART 1: SMART INSIGHTS ── */
@@ -2149,8 +2148,8 @@ function renderBudgetAlerts(){
     const spent=catMap[cat]||0; if(!limit) return;
     const pct=Math.round((spent/limit)*100);
     if(pct>=100) html+=`<div class="budget-alert-chip over" onclick="nav('budget')">🔴 ${getCatName(cat)} exceeded (${fmt(spent)}/${fmt(limit)})</div>`;
-    else if(pct>=80) html+=`<div class="budget-alert-chip strong" onclick="nav('budget')">⚠️ ${getCatName(cat)} ${pct}% used</div>`;
-    else if(pct>=50) html+=`<div class="budget-alert-chip mild" onclick="nav('budget')">🟡 ${getCatName(cat)} ${pct}% used</div>`;
+    else if(pct>=90) html+=`<div class="budget-alert-chip strong" onclick="nav('budget')">⚠️ ${getCatName(cat)} ${pct}% used</div>`;
+    else if(pct>=75) html+=`<div class="budget-alert-chip mild" onclick="nav('budget')">🟡 ${getCatName(cat)} ${pct}% used</div>`;
   });
   el.innerHTML=html;
   el.style.marginBottom=html?'4px':'0';
@@ -2401,11 +2400,11 @@ function renderAccounts(){
     const bal=DB.accBal(a.id);
     const isCredit=a.type==='credit';
     const txns=DB.getTxns().filter(t=>t.accountId===a.id||t.toAccountId===a.id);
-    const inc=txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const exp=txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const inc=txns.filter(t=>(t.type==='income'&&t.accountId===a.id)||(t.type==='transfer'&&t.toAccountId===a.id)).reduce((s,t)=>s+t.amount,0);
+    const exp=txns.filter(t=>(t.type==='expense'&&t.accountId===a.id)||(t.type==='transfer'&&t.accountId===a.id)).reduce((s,t)=>s+t.amount,0);
     const balClass=isCredit?(bal<0?'acc-card-bal credit-outstanding':bal===0?'acc-card-bal credit-zero':'acc-card-bal'):'acc-card-bal';
-    const balDisplay=isCredit?(bal<0?`-${fmt(bal)}`:fmt(bal)):fmt(bal);
-    const balLabel=isCredit?'Outstanding':'Balance';
+    const balDisplay=isCredit?(bal<0?`-${fmt(bal)}`:bal===0?fmt(bal):`+${fmt(bal)}`):fmt(bal);
+    const balLabel=isCredit?(bal<0?'Outstanding':bal===0?'Cleared':'Overpaid'):'Balance';
     return `<div class="acc-card${isCredit?' credit-card-type':''}" data-id="${a.id}" draggable="false">
       <div class="acc-card-top">
         <div class="acc-card-left">
@@ -2415,7 +2414,7 @@ function renderAccounts(){
         <div class="drag-handle" data-drag-type="account" data-drag-id="${a.id}" title="Drag to reorder">≡</div>
       </div>
       <div class="acc-bal-label">${balLabel}</div>
-      <div class="${balClass}">${balDisplay}</div>
+      <div class="${balClass}" style="${isCredit&&bal>0?'color:var(--income)':''}">${balDisplay}</div>
       <div class="acc-card-stats">
         <div class="acc-stat">↑ <strong>${fmt(inc)}</strong></div>
         <div class="acc-stat">↓ <strong>${fmt(exp)}</strong></div>
