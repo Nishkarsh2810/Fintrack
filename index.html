@@ -530,66 +530,58 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 #lock-screen{
   position:fixed;inset:0;background:var(--bg);z-index:9999;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:env(safe-area-inset-top,0) 28px env(safe-area-inset-bottom,0);
+  padding:20px;overflow:hidden;
 }
 #lock-screen.hidden{display:none;}
-.lock-top{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:44px;}
-.lock-logo{font-size:32px;font-weight:700;letter-spacing:-.04em;}
+.lock-inner{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;max-width:320px;
+}
+.lock-top{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:28px;}
+.lock-logo{font-size:26px;font-weight:700;letter-spacing:-.04em;}
 .lock-logo em{color:var(--accent);font-style:normal;}
-.lock-subtitle{font-size:13px;color:var(--text3);font-weight:500;letter-spacing:.03em;text-transform:uppercase;margin-top:2px;}
-.lock-title{font-size:16px;color:var(--text2);font-weight:500;margin-top:20px;}
-.pin-dots{display:flex;gap:22px;margin-top:16px;}
+.lock-subtitle{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
+.lock-title{font-size:14px;color:var(--text2);font-weight:500;margin-top:14px;}
+.pin-dots{display:flex;gap:16px;margin-top:10px;}
 .pin-dot{
-  width:20px;height:20px;border-radius:50%;
+  width:15px;height:15px;border-radius:50%;
   border:2px solid var(--border2);background:transparent;
   transition:background .12s,border-color .12s,transform .1s;
 }
 .pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
 .pin-error{
-  font-size:13px;color:var(--expense);font-weight:600;
-  min-height:20px;text-align:center;
-  margin-top:14px;margin-bottom:28px;
+  font-size:12px;color:var(--expense);font-weight:600;
+  min-height:16px;text-align:center;
+  margin-top:8px;margin-bottom:18px;width:100%;
 }
 .pin-keypad{
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:16px;width:100%;max-width:320px;
+  display:grid;grid-template-columns:repeat(3,72px);
+  gap:12px;
 }
 .pin-key{
-  aspect-ratio:1/1;
+  width:72px;height:72px;
   border-radius:50%;
   border:1.5px solid var(--border2);
   background:var(--surface);
   color:var(--text);
-  font-size:26px;font-weight:500;font-family:var(--num);
+  font-size:24px;font-weight:500;font-family:var(--num);
   cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   transition:background .08s,border-color .08s,transform .07s;
   -webkit-tap-highlight-color:transparent;
   user-select:none;touch-action:manipulation;
-  min-height:70px;
 }
-.pin-key:active,.pin-key.pressed{
-  background:var(--surface3);
-  border-color:var(--accent-border);
-  transform:scale(.88);
-}
-.pin-key.del{font-size:22px;color:var(--text2);background:transparent;border-color:transparent;}
+.pin-key:active,.pin-key.pressed{background:var(--surface3);border-color:var(--accent-border);transform:scale(.88);}
+.pin-key.del{font-size:18px;color:var(--text2);background:transparent;border-color:transparent;}
 .pin-key.del:active,.pin-key.del.pressed{background:var(--surface2);border-color:var(--border);}
 .pin-key.empty{border:none;background:transparent;cursor:default;pointer-events:none;}
-@media(min-width:390px){
-  .pin-keypad{max-width:360px;gap:18px;}
-  .pin-key{font-size:28px;min-height:76px;}
-}
-@media(min-height:780px){
-  .lock-top{margin-bottom:56px;}
-  .pin-keypad{gap:20px;}
-}
 
 </style>
 </head>
 <body>
 <!-- APP LOCK SCREEN -->
 <div id="lock-screen" class="hidden">
+<div class="lock-inner">
   <div class="lock-top">
     <div class="lock-logo">Fin<em>Track</em></div>
     <div class="lock-subtitle">Personal Finance</div>
@@ -616,6 +608,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     <button class="pin-key" ontouchstart="pinKeyTouch(this)" onclick="pinKey('0')">0</button>
     <button class="pin-key del" ontouchstart="pinKeyTouch(this)" onclick="pinDel()">⌫</button>
   </div>
+</div><!-- /lock-inner -->
 </div>
 
 <div class="shell">
@@ -672,7 +665,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="txn-feed" id="home-feed"></div>
       </div>
       <div>
-        <div class="sec-header"><div class="sec-title">Budget This Month</div><div class="sec-link" onclick="nav('budget')">Details</div></div>
+        <div class="sec-header" style="margin-top:6px"><div class="sec-title">Budget This Month</div><div style="display:flex;gap:8px;align-items:center"><div class="sec-link" style="background:var(--accent);color:var(--accent-text);padding:4px 10px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer" onclick="nav('budget')">+ Set Budget</div><div class="sec-link" onclick="nav('budget')">Details</div></div></div>
         <div id="home-budget-preview"></div>
       </div>
     </div>
@@ -1062,7 +1055,14 @@ const getAccIcon = a => {
 
 const DEFAULT_EXP_CATS = ['🍽️ Food','🚗 Transport','🛍️ Shopping','🎬 Entertainment','💊 Health','📚 Education','💡 Bills','🏠 Rent','✂️ Personal','📦 Other'];
 const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 Investment','🎁 Gift','💰 Other'];
-const getAllExpCats = () => [...DEFAULT_EXP_CATS,...DB.getCustomCats()];
+const getAllExpCats = () => {
+  const base=[...DEFAULT_EXP_CATS,...DB.getCustomCats()];
+  const order=(DB.getPrefs()||{}).catOrder;
+  if(!order||!order.length) return base;
+  const ordered=order.filter(c=>base.includes(c));
+  const extra=base.filter(c=>!order.includes(c));
+  return [...ordered,...extra];
+};
 const getAllIncCats = () => DEFAULT_INC_CATS;
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
 // Robust emoji detection + auto-sanitize stored values
@@ -1604,27 +1604,46 @@ function saveBill(){
 }
 
 function markBillPaid(id){
-  const bill = DB.getBills().find(b => b.id === id); if(!bill) return;
-  if(bill.recurring){
-    const ym = thisYM();
-    const paidMonths = Array.isArray(bill.paidMonths) ? [...bill.paidMonths] : [];
-    if(!paidMonths.includes(ym)) paidMonths.push(ym);
-    DB.updateBill({ ...bill, paidMonths });
-  } else {
-    DB.updateBill({ ...bill, paid: true, paidDate: todayStr() });
+  if(id.startsWith('virt_')){
+    const accId=id.replace('virt_',''), ym=thisYM(), bills=DB.getBills();
+    const ex=bills.find(b=>b._creditAccId===accId);
+    if(ex){
+      const pm=Array.isArray(ex.paidMonths)?[...ex.paidMonths]:[];
+      if(!pm.includes(ym)) pm.push(ym);
+      DB.updateBill({...ex,paidMonths:pm});
+    } else {
+      const acc=DB.getAccounts().find(a=>a.id===accId); if(!acc) return;
+      const now=new Date(),maxDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+      const dn=acc.creditDueDay?Math.min(acc.creditDueDay,maxDay):maxDay;
+      DB.addBill({name:acc.name+' Bill',amount:0,
+        dueDate:`${ym}-${String(dn).padStart(2,'0')}`,
+        category:'💳 Credit Card',recurring:true,dayOfMonth:dn,
+        paidMonths:[ym],_virtual:true,_creditAccId:accId});
+    }
+    renderBills(); renderHome(); toast('✅ Bill marked as paid'); return;
   }
+  const bill=DB.getBills().find(b=>b.id===id); if(!bill) return;
+  if(bill.recurring){
+    const ym=thisYM();
+    const pm=Array.isArray(bill.paidMonths)?[...bill.paidMonths]:[];
+    if(!pm.includes(ym)) pm.push(ym);
+    DB.updateBill({...bill,paidMonths:pm});
+  } else { DB.updateBill({...bill,paid:true,paidDate:todayStr()}); }
   renderBills(); renderHome(); toast('✅ Bill marked as paid');
 }
 
 function markBillUnpaid(id){
-  const bill = DB.getBills().find(b => b.id === id); if(!bill) return;
-  if(bill.recurring){
-    const ym = thisYM();
-    const paidMonths = (bill.paidMonths || []).filter(m => m !== ym);
-    DB.updateBill({ ...bill, paidMonths });
-  } else {
-    DB.updateBill({ ...bill, paid: false, paidDate: null });
+  if(id.startsWith('virt_')){
+    const accId=id.replace('virt_',''), ym=thisYM();
+    const ex=DB.getBills().find(b=>b._creditAccId===accId);
+    if(ex){ DB.updateBill({...ex,paidMonths:(ex.paidMonths||[]).filter(m=>m!==ym)}); }
+    renderBills(); renderHome(); toast('Bill marked as unpaid'); return;
   }
+  const bill=DB.getBills().find(b=>b.id===id); if(!bill) return;
+  if(bill.recurring){
+    const ym=thisYM();
+    DB.updateBill({...bill,paidMonths:(bill.paidMonths||[]).filter(m=>m!==ym)});
+  } else { DB.updateBill({...bill,paid:false,paidDate:null}); }
   renderBills(); renderHome(); toast('Bill marked as unpaid');
 }
 
@@ -1655,8 +1674,11 @@ function getEffectiveBills(){
     // Always show the bill even if outstanding is 0 (so user sees the card)
     // Only hide it if it was fully paid this month AND balance is zero
     const paidMonths = storedState?.paidMonths || [];
-    const paidThisMonth = paidMonths.includes(ym);
-    if(paidThisMonth && outstanding >= 0) return; // genuinely cleared, hide
+    // New spending resets paid state: if card has new debt, remove paid flag
+    const hasDebt = outstanding < 0;
+    const effectivePaid = hasDebt ? paidMonths.filter(m=>m!==ym) : paidMonths;
+    // Only hide when: no debt AND was marked paid this month
+    if(!hasDebt && effectivePaid.includes(ym)) return;
 
     virtual.push({
       // Spread stored state first (gets paidMonths, id stability), then override live fields
@@ -1668,7 +1690,7 @@ function getEffectiveBills(){
       category:     '💳 Credit Card',
       recurring:    true,
       dayOfMonth:   dayNum,
-      paidMonths,
+      paidMonths:   effectivePaid,
       _virtual:     true,
       _creditAccId: acc.id,
     });
@@ -1836,14 +1858,10 @@ function reorder(type, srcEl, targetEl){
     DB.saveAccounts(sorted);
     renderAccounts(); renderHome();
   } else if(type === 'category'){
-    // Reorder customCats (default cats stay in their relative position)
-    const allCats = [...document.getElementById('cat-budgets-list').querySelectorAll('[data-cat]')].map(el => el.dataset.cat);
-    const customs = DB.getCustomCats();
-    const srcCat  = srcEl.dataset.cat, tgtCat = targetEl.dataset.cat;
-    // Build a full ordered list, then extract only custom ones in new order
-    const reordered = reorderArray(allCats, c => c, srcCat, tgtCat);
-    const newCustomOrder = reordered.filter(c => customs.includes(c));
-    DB.saveCustomCats(newCustomOrder);
+    const allCats=[...document.getElementById('cat-budgets-list').querySelectorAll('[data-cat]')].map(el=>el.dataset.cat);
+    const srcCat=srcEl.dataset.cat, tgtCat=targetEl.dataset.cat;
+    const reordered=reorderArray(allCats,c=>c,srcCat,tgtCat);
+    const prefs=DB.getPrefs(); prefs.catOrder=reordered; DB.savePrefs(prefs);
     renderBudget();
   } else if(type === 'bill'){
     const bills  = DB.getBills();
@@ -1880,6 +1898,8 @@ function delBill(id){
   });
 }
 
+function openCatEditSafe(btn){ openCatEdit(btn.getAttribute('data-cedit')); }
+function deleteCatSafe(btn){ deleteCat(btn.getAttribute('data-cdel')); }
 function openCatEdit(cat){
   const b=DB.getBudgets();
   const titleEl=document.getElementById('cat-sheet-title');
@@ -2356,7 +2376,7 @@ function renderBudget(){
         <div style="display:flex;align-items:center;gap:6px">
           <div class="cat-budget-info">${catLimit>0?`${fmt(catSpent)} / ${fmt(catLimit)}`:catSpent>0?fmt(catSpent)+' spent':''}</div>
           <div class="cat-actions">
-            <button class="cat-action-btn edit" onclick="openCatEdit('${cat}')">edit</button>
+            <button class="cat-action-btn edit" data-cedit="${cat}" onclick="openCatEditSafe(this)">edit</button>
             ${isCustom?`<button class="cat-action-btn del" onclick="deleteCat('${cat}')">✕</button>`:''}
           </div>
           <div class="drag-handle" data-drag-type="category" data-drag-id="${cat.replace(/"/g,'&quot;')}" title="Drag to reorder">≡</div>
