@@ -150,6 +150,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .alert-chip:hover{opacity:0.82;}
 .alert-chip.overdue{background:var(--expense-dim);border:1px solid rgba(248,113,113,0.25);color:var(--expense);}
 .alert-chip.duetoday{background:var(--warn-dim);border:1px solid rgba(251,191,36,0.3);color:var(--warn);}
+.alert-chip.dueSoon{background:var(--transfer-dim);border:1px solid rgba(96,165,250,0.25);color:var(--transfer);}
 
 /* ── SECTION HEADERS ── */
 .sec-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
@@ -483,7 +484,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 .drag-over{border-top:2px solid var(--accent)!important;}
 
 /* ── ALERT CHIP: DUE SOON ── */
-.alert-chip.dueSoon{background:var(--transfer-dim);border:1px solid rgba(96,165,250,0.25);color:var(--transfer);}
+/* .alert-chip.dueSoon moved to correct location below alert-chip.duetoday */
 
 /* ── BILLS NAV BADGE ── */
 .nav-btn{position:relative;}
@@ -652,6 +653,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
       </div>
     </div>
     <div id="home-alerts"></div>
+    <div id="home-recurring-due"></div>
     <div id="budget-alerts-home"></div>
     <div class="insights-row" id="smart-insights"></div>
     <div class="insight-chip"><span>💡</span><span id="insight-text">Add transactions to see insights.</span></div>
@@ -660,6 +662,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="sec-header"><div class="sec-title">Accounts</div><div class="sec-link" onclick="nav('accounts')">Manage</div></div>
         <div class="accs-wrap"><div class="accs-scroll" id="home-accs"></div></div>
       </div>
+      <div id="home-monthly-summary" class="span-full"></div>
+      <div id="home-dues" class="span-full"></div>
       <div>
         <div class="sec-header"><div class="sec-title" id="home-feed-title">Recent</div><div class="sec-link" onclick="nav('txns')">See all</div></div>
         <div class="txn-feed" id="home-feed"></div>
@@ -817,6 +821,16 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="form-group full"><div id="balance-hint" class="field-hint" style="display:none"></div></div>
         <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="t-note" type="text" placeholder="e.g. lunch, salary…" oninput="autoCat()"/></div>
         <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="t-date" type="date"/></div>
+        <div class="form-group full" id="txn-recurring-wrap" style="display:none">
+          <div class="toggle-row" onclick="toggleTxnRecurring()" id="txn-recurring-toggle-row">
+            <span class="toggle-row-label">🔁 Repeat Monthly</span>
+            <div class="toggle-switch" id="txn-recurring-sw"></div>
+          </div>
+          <div id="txn-recurday-wrap" style="display:none;margin-top:8px">
+            <div class="flabel">Repeat on day of month</div>
+            <input class="finput" id="t-recurday" type="number" placeholder="e.g. 5" min="1" max="31" inputmode="numeric"/>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Transfer fields -->
@@ -962,6 +976,37 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 
 <div class="toast" id="toast"></div>
 
+<!-- ADD DUE SHEET -->
+<div class="overlay" id="due-overlay" onclick="sheetClickOut('due',event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Lend Money (Due)</div>
+    <div class="form-grid">
+      <div class="form-group full"><div class="flabel">Person Name</div><input class="finput" id="due-person" type="text" placeholder="e.g. Bhai, Rahul…"/></div>
+      <div class="form-group full"><div class="flabel">Amount (₹)</div><input class="finput" id="due-amount" type="text" inputmode="decimal" placeholder="0" oninput="formatAmountInput(this)"/></div>
+      <div class="form-group full"><div class="flabel">From Account</div><select class="fselect" id="due-acc"></select></div>
+      <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="due-date" type="date"/></div>
+      <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="due-note" type="text" placeholder="What for?"/></div>
+    </div>
+    <button class="save-btn" onclick="saveDue()">Lend &amp; Deduct</button>
+  </div>
+</div>
+
+<!-- SETTLE DUE SHEET -->
+<div class="overlay" id="settle-overlay" onclick="sheetClickOut('settle',event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="settle-title">Settle Due</div>
+    <div class="form-grid">
+      <div class="form-group full"><div class="flabel">Amount Returned (₹)</div><input class="finput" id="settle-amount" type="text" inputmode="decimal" placeholder="0" oninput="formatAmountInput(this)"/></div>
+      <div class="form-group full"><div class="flabel">Into Account</div><select class="fselect" id="settle-acc"></select></div>
+      <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="settle-date" type="date"/></div>
+    </div>
+    <input type="hidden" id="settle-due-id" value=""/>
+    <button class="save-btn" onclick="saveSettlement()">Settle</button>
+  </div>
+</div>
+
 <!-- NEW CATEGORY SHEET (from transaction) -->
 <div class="overlay" id="newcat-overlay" onclick="sheetClickOut('newcat',event)">
   <div class="sheet" onclick="event.stopPropagation()" style="max-height:55vh">
@@ -996,6 +1041,8 @@ const DB = {
   saveCustomCats:(d) => { localStorage.setItem('ft6_custcats',JSON.stringify(d)); FS.push('custcats', d); },
   getBills:      () => JSON.parse(localStorage.getItem('ft6_bills')   || '[]'),
   saveBills:     (d) => { localStorage.setItem('ft6_bills',   JSON.stringify(d)); FS.push('bills', d); },
+  getDues:       () => JSON.parse(localStorage.getItem('ft6_dues')    || '[]'),
+  saveDues:      (d) => { localStorage.setItem('ft6_dues',    JSON.stringify(d)); FS.push('dues', d); },
 
   addAccount(a)      { const l=this.getAccounts(); a.id='a_'+Date.now(); l.push(a); this.saveAccounts(l); return a; },
   delAccount(id)     { this.saveAccounts(this.getAccounts().filter(a=>a.id!==id)); },
@@ -1035,7 +1082,7 @@ const DB = {
   },
   storageSize() {
     let b=0;
-    ['ft6_accs','ft6_txns','ft6_budgets','ft6_custcats','ft6_prefs','ft6_bills'].forEach(k=>{b+=(localStorage.getItem(k)||'').length*2;});
+    ['ft6_accs','ft6_txns','ft6_budgets','ft6_custcats','ft6_prefs','ft6_bills','ft6_dues'].forEach(k=>{b+=(localStorage.getItem(k)||'').length*2;});
     return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(2)+'MB';
   }
 };
@@ -1043,8 +1090,8 @@ const DB = {
 /* ── HELPERS ── */
 const fmt      = n => '₹'+Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
 const fmtSigned= n => (n<0?'-':'+')+fmt(n);
-const thisYM   = () => new Date().toISOString().substring(0,7);
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const thisYM   = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 
 const ICONS = {bank:'🏦',cash:'💵',upi:'📱',card:'💳',savings:'💰',wallet:'👛',credit:'💳',other:'📂'};
 // Returns the icon for an account: custom emoji if set, otherwise type icon
@@ -1055,15 +1102,17 @@ const getAccIcon = a => {
 
 const DEFAULT_EXP_CATS = ['🍽️ Food','🚗 Transport','🛍️ Shopping','🎬 Entertainment','💊 Health','📚 Education','💡 Bills','🏠 Rent','✂️ Personal','📦 Other'];
 const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 Investment','🎁 Gift','💰 Other'];
+const DUE_CATS = ['🤝 Due Given', '🤝 Due Received'];
 const getAllExpCats = () => {
-  const base=[...DEFAULT_EXP_CATS,...DB.getCustomCats()];
+  const base=[...DEFAULT_EXP_CATS,...DB.getCustomCats()].filter(c=>!DUE_CATS.includes(c));
   const order=(DB.getPrefs()||{}).catOrder;
   if(!order||!order.length) return base;
   const ordered=order.filter(c=>base.includes(c));
   const extra=base.filter(c=>!order.includes(c));
   return [...ordered,...extra];
 };
-const getAllIncCats = () => DEFAULT_INC_CATS;
+const getAllIncCats = () => DEFAULT_INC_CATS.filter(c=>!DUE_CATS.includes(c));
+
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
 // Robust emoji detection + auto-sanitize stored values
 function startsWithEmoji(str){
@@ -1239,6 +1288,10 @@ function openSheet(which){
     const defDate=activeDate||todayStr();
     document.getElementById('t-date').value=defDate; document.getElementById('tr-date').value=defDate;
     document.getElementById('t-amount').value=''; document.getElementById('t-note').value=''; document.getElementById('tr-note').value=''; userChangedCat=false;
+    const _rw=document.getElementById('txn-recurring-wrap'); if(_rw) _rw.style.display='';
+    const _rsw=document.getElementById('txn-recurring-sw'); if(_rsw) _rsw.classList.remove('on');
+    const _rdw=document.getElementById('txn-recurday-wrap'); if(_rdw) _rdw.style.display='none';
+    document.getElementById('t-recurday').value='';
     hideHints();
     document.getElementById('txn-overlay').classList.add('open');
     setTimeout(()=>{try{document.getElementById('t-amount').focus();}catch(e){}},320);
@@ -1280,6 +1333,8 @@ function setTxnType(type){
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
   document.getElementById('ei-fields').style.display=type==='transfer'?'none':'block';
   document.getElementById('tr-fields').style.display=type==='transfer'?'block':'none';
+  const rw=document.getElementById('txn-recurring-wrap');
+  if(rw) rw.style.display=(type==='expense'||type==='income')?'':' none';
   if(type!=='transfer') fillCatSelect(type);
   hideHints(); checkBalanceHint();
 }
@@ -1450,12 +1505,29 @@ function saveTxn(){
   }
 
   const obj={type:currentType,amount,category:cat,accountId:accId,note,date};
+  // Preserve recurring fields from original txn if editing
+  if(editingTxnId){
+    const origTxn=DB.getTxns().find(t=>t.id===editingTxnId);
+    if(origTxn&&origTxn.recurring){ obj.recurring=true; obj.recurDay=origTxn.recurDay; }
+  }
+  // Add recurring fields from form if new/not-editing
+  const txnRecSw=document.getElementById('txn-recurring-sw');
+  if(!editingTxnId && txnRecSw && txnRecSw.classList.contains('on')){
+    const rd=parseInt(document.getElementById('t-recurday').value)||0;
+    if(rd>=1&&rd<=31){obj.recurring=true;obj.recurDay=rd;}
+  }
   if(editingTxnId){
     obj.id=editingTxnId; DB.updateTxn(obj); toast('✅ Transaction updated');
   } else {
     DB.addTxn(obj);
     DB.savePrefs({lastAcc:accId,lastCat:cat,lastType:currentType});
     toast(currentType==='income'?'💚 Income added':'💸 Expense added');
+  }
+  // Tag with _recurDay if this was a recurring edit-confirm
+  if(!editingTxnId && window._pendingRecurDay){
+    const lastTxn=DB.getTxns()[0];
+    if(lastTxn){ DB.updateTxn({...lastTxn,_recurDay:window._pendingRecurDay}); }
+    window._pendingRecurDay=null;
   }
   closeSheet('txn'); refreshPage(); editingTxnId=null;
 }
@@ -1542,7 +1614,10 @@ function saveAccount(){
 function delAccount(id){
   const n=DB.getTxns().filter(t=>t.accountId===id||t.toAccountId===id).length;
   showConfirm('🏦','Delete Account?',`${n>0?`This account has ${n} transaction(s). `:''}This cannot be undone.`,'Delete',()=>{
-    DB.delAccount(id); renderAccounts(); renderHome(); toast('Account removed');
+    DB.delAccount(id);
+    const cleanedBills=DB.getBills().filter(b=>b._creditAccId!==id);
+    if(cleanedBills.length!==DB.getBills().length) DB.saveBills(cleanedBills);
+    renderAccounts(); renderHome(); toast('Account removed');
   });
 }
 
@@ -1966,6 +2041,269 @@ function addCustomCat(){
   input.value=''; renderBudget(); toast('✅ Category added');
 }
 
+/* ══════════════════════════════════════════════════════════════
+   FEATURE 1 — Monthly Summary Card
+   ══════════════════════════════════════════════════════════════ */
+function renderMonthlySummary(){
+  const el=document.getElementById('home-monthly-summary'); if(!el) return;
+  const ym=thisYM();
+  const txns=DB.getTxns();
+  const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
+  const curTotal=curExp.reduce((s,t)=>s+t.amount,0);
+  const now=new Date();
+  const monthName=now.toLocaleString('en-IN',{month:'long',year:'numeric'});
+  if(!curTotal){
+    el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
+        <div style="font-size:11px;color:var(--text3)">${monthName}</div>
+      </div>
+      <div style="font-size:13px;color:var(--text3)">No spending this month yet.</div>
+    </div>`;
+    return;
+  }
+  // Previous month comparison
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevYM=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  const prevTotal=txns.filter(t=>t.type==='expense'&&t.date.startsWith(prevYM)).reduce((s,t)=>s+t.amount,0);
+  let cmpHtml='';
+  if(prevTotal>0){
+    const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
+    const up=diff>0;
+    cmpHtml=`<div style="font-size:12px;color:${up?'var(--expense)':'var(--income)'};margin-top:4px">${up?'↑':'↓'} ${Math.abs(diff)}% ${up?'more':'less'} than last month</div>`;
+  }
+  // Category breakdown — top 5
+  const catMap={};
+  curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+  const top5=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const barsHtml=top5.map(([cat,amt])=>{
+    const pct=Math.round((amt/curTotal)*100);
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:500">
+          <span>${getEmoji(cat)}</span><span>${getCatName(cat)}</span>
+        </div>
+        <div style="font-family:var(--num);font-size:12px;color:var(--text2);font-weight:600">${fmt(amt)}</div>
+      </div>
+      <div style="background:var(--surface3);border-radius:100px;height:4px;overflow:hidden">
+        <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:100px"></div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
+      <div style="font-size:11px;color:var(--text3)">${monthName}</div>
+    </div>
+    <div style="font-family:var(--num);font-size:24px;font-weight:600;color:var(--expense)">${fmt(curTotal)}</div>
+    ${cmpHtml}
+    <div style="margin-top:14px">${barsHtml}</div>
+    <div style="text-align:right;margin-top:8px">
+      <span style="font-size:12px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">See full budget →</span>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FEATURE 2 — Recurring Transactions
+   ══════════════════════════════════════════════════════════════ */
+let txnRecurring=false;
+function toggleTxnRecurring(){
+  txnRecurring=!txnRecurring;
+  document.getElementById('txn-recurring-sw').classList.toggle('on',txnRecurring);
+  const rdw=document.getElementById('txn-recurday-wrap');
+  if(rdw) rdw.style.display=txnRecurring?'':'none';
+}
+
+// Check for recurring transactions due today and show confirmation card
+function renderRecurringDue(){
+  const el=document.getElementById('home-recurring-due'); if(!el) return;
+  const today=todayStr();
+  const todayDay=parseInt(today.split('-')[2]);
+  const ym=thisYM();
+  const txns=DB.getTxns();
+  const accs=DB.getAccounts();
+
+  // Find recurring templates due today that haven't been confirmed this month
+  const due=txns.filter(t=>{
+    if(!t.recurring||!t.recurDay) return false;
+    if(t.recurDay!==todayDay) return false;
+    // Template must be from a previous month
+    if(t.date.startsWith(ym)) return false;
+    // Check no confirmation exists this month for same account+category+recurDay
+    const already=txns.some(x=>
+      !x.recurring &&
+      x.accountId===t.accountId &&
+      x.category===t.category &&
+      x.date.startsWith(ym) &&
+      x._recurDay===t.recurDay
+    );
+    return !already;
+  });
+
+  if(!due.length){el.innerHTML='';return;}
+
+  const rows=due.map(t=>{
+    const accName=accs.find(a=>a.id===t.accountId)?.name||'?';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${getEmoji(t.category)} ${getCatName(t.category)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${accName} · ${fmt(t.amount)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="confirmRecurring('${t.id}')" style="font-size:11px;font-weight:700;padding:6px 10px;border-radius:var(--r-xs);border:none;background:var(--accent);color:var(--accent-text);cursor:pointer;font-family:var(--font)">Confirm ${fmt(t.amount)}</button>
+        <button onclick="editConfirmRecurring('${t.id}')" style="font-size:11px;font-weight:600;padding:6px 10px;border-radius:var(--r-xs);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:var(--font)">Edit</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`<div style="background:var(--warn-dim);border:1px solid var(--warn);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">🔁 Recurring Due Today</div>
+    ${rows}
+  </div>`;
+}
+
+function confirmRecurring(templateId){
+  const tmpl=DB.getTxns().find(t=>t.id===templateId); if(!tmpl) return;
+  const newTxn={type:tmpl.type,amount:tmpl.amount,category:tmpl.category,accountId:tmpl.accountId,note:tmpl.note||'',date:todayStr(),_recurDay:tmpl.recurDay};
+  DB.addTxn(newTxn);
+  refreshPage();
+  toast('✅ Recurring transaction confirmed');
+}
+
+function editConfirmRecurring(templateId){
+  const tmpl=DB.getTxns().find(t=>t.id===templateId); if(!tmpl) return;
+  // Open the txn sheet pre-filled with template data but today's date, as a new transaction
+  editingTxnId=null;
+  document.getElementById('edit-txn-id').value='';
+  document.getElementById('txn-sheet-title').textContent='Confirm Recurring';
+  document.getElementById('save-txn-btn').textContent='Confirm Transaction';
+  document.getElementById('type-seg').style.display='none';
+  currentType=tmpl.type;
+  const _amtEl=document.getElementById('t-amount'); _amtEl.value=tmpl.amount; formatAmountInput(_amtEl);
+  document.getElementById('ei-fields').style.display='block';
+  document.getElementById('tr-fields').style.display='none';
+  fillCatSelect(tmpl.type); fillAccSelect('t-acc');
+  userChangedCat=true;
+  try{document.getElementById('t-cat').value=tmpl.category;document.getElementById('t-acc').value=tmpl.accountId;}catch(e){}
+  document.getElementById('t-note').value=tmpl.note||'';
+  document.getElementById('t-date').value=todayStr();
+  // Mark this as a recurring confirmation (not a recurring template)
+  const _rw=document.getElementById('txn-recurring-wrap'); if(_rw) _rw.style.display='none';
+  hideHints();
+  document.getElementById('txn-overlay').classList.add('open');
+  setTimeout(()=>{try{document.getElementById('t-amount').focus();}catch(e){}},320);
+  // After save, tag the txn with _recurDay for duplicate prevention
+  window._pendingRecurDay=tmpl.recurDay;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FEATURE 3 — Dues Tracker
+   ══════════════════════════════════════════════════════════════ */
+function renderDues(){
+  const el=document.getElementById('home-dues'); if(!el) return;
+  const dues=DB.getDues().filter(d=>d.settledAmount<d.totalAmount);
+  if(!dues.length){el.innerHTML='';return;}
+
+  const rows=dues.map(d=>{
+    const outstanding=d.totalAmount-d.settledAmount;
+    const dateFormatted=new Date(d.date+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${d.person}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Given on ${dateFormatted}${d.note?' · '+d.note:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--num);font-size:14px;font-weight:700;color:var(--warn)">${fmt(outstanding)}</div>
+        <button onclick="openSettleSheet('${d.id}')" style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--r-xs);border:1px solid var(--warn);background:var(--warn-dim);color:var(--warn);cursor:pointer;font-family:var(--font);margin-top:4px">Settle</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">🤝 Dues</div>
+      <span style="font-size:12px;color:var(--accent);font-weight:600;cursor:pointer" onclick="openDueSheet()">+ Add Due</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function openDueSheet(){
+  fillAccSelect('due-acc');
+  document.getElementById('due-person').value='';
+  document.getElementById('due-amount').value='';
+  document.getElementById('due-note').value='';
+  document.getElementById('due-date').value=todayStr();
+  document.getElementById('due-overlay').classList.add('open');
+  setTimeout(()=>{try{document.getElementById('due-person').focus();}catch(e){}},320);
+}
+
+function saveDue(){
+  const person=document.getElementById('due-person').value.trim();
+  if(!person) return toast('Enter person name');
+  const amount=parseFloat((document.getElementById('due-amount').value||'').replace(/,/g,''))||0;
+  if(!amount||amount<=0) return toast('Enter a valid amount');
+  const accId=document.getElementById('due-acc').value;
+  if(!accId) return toast('Select an account');
+  const date=document.getElementById('due-date').value||todayStr();
+  const note=document.getElementById('due-note').value.trim();
+
+  const due={id:'d_'+Date.now(),person,totalAmount:amount,settledAmount:0,fromAccountId:accId,date,note,settlements:[]};
+  const dues=DB.getDues(); dues.push(due); DB.saveDues(dues);
+
+  // Log as expense to deduct from account
+  DB.addTxn({type:'expense',amount,category:'🤝 Due Given',accountId:accId,note:'Due to '+person,date,_dueId:due.id});
+
+  closeSheet('due');
+  refreshPage();
+  renderDues();
+  toast('🤝 Due recorded & deducted');
+}
+
+function openSettleSheet(dueId){
+  const due=DB.getDues().find(d=>d.id===dueId); if(!due) return;
+  const outstanding=due.totalAmount-due.settledAmount;
+  document.getElementById('settle-due-id').value=dueId;
+  document.getElementById('settle-title').textContent='Settle — '+due.person;
+  const amtEl=document.getElementById('settle-amount'); amtEl.value=outstanding; formatAmountInput(amtEl);
+  document.getElementById('settle-date').value=todayStr();
+  fillAccSelect('settle-acc');
+  document.getElementById('settle-overlay').classList.add('open');
+  setTimeout(()=>{try{document.getElementById('settle-amount').focus();}catch(e){}},320);
+}
+
+function saveSettlement(){
+  const dueId=document.getElementById('settle-due-id').value;
+  const amount=parseFloat((document.getElementById('settle-amount').value||'').replace(/,/g,''))||0;
+  if(!amount||amount<=0) return toast('Enter settlement amount');
+  const toAccId=document.getElementById('settle-acc').value;
+  if(!toAccId) return toast('Select an account');
+  const date=document.getElementById('settle-date').value||todayStr();
+
+  const dues=DB.getDues();
+  const due=dues.find(d=>d.id===dueId); if(!due) return;
+  const settled=Math.min(amount,due.totalAmount-due.settledAmount);
+
+  due.settlements.push({amount:settled,toAccountId:toAccId,date});
+  due.settledAmount+=settled;
+
+  // Log as income to add money back
+  DB.addTxn({type:'income',amount:settled,category:'🤝 Due Received',accountId:toAccId,note:'Returned by '+due.person,date,_dueId:dueId});
+
+  if(due.settledAmount>=due.totalAmount){
+    // Fully settled — remove it
+    DB.saveDues(dues.filter(d=>d.id!==dueId));
+  } else {
+    DB.saveDues(dues);
+  }
+
+  closeSheet('settle');
+  refreshPage();
+  renderDues();
+  toast('✅ Settlement recorded');
+}
+
 /* ── INLINE CATEGORY CREATE (opened from transaction sheet) ── */
 function openInlineCatCreate(type){
   document.getElementById('newcat-type').value=type||'expense';
@@ -2043,10 +2381,13 @@ function renderDashboardNumbers(){
 function renderHome(){
   renderDashboardNumbers();
   renderHomeAlerts();
+  renderRecurringDue();
   renderBudgetAlerts();
   renderInsight();
   renderSmartInsights();
   renderHomeAccs();
+  renderMonthlySummary();
+  renderDues();
   renderHomeFeed();
   renderHomeBudgetPreview();
   updateDateChips();
@@ -2284,7 +2625,7 @@ function renderHomeAccs(){
     return `<div class="acc-pill">
       <div class="acc-pill-icon">${getAccIcon(a)}</div>
       <div class="acc-pill-name">${a.name}</div>
-      <div class="acc-pill-bal ${balClass}">${isCredit&&bal<0?'-':''} ${fmt(bal)}</div>
+      <div class="acc-pill-bal ${balClass}">${isCredit&&bal<0?'-':''}${fmt(bal)}</div>
       <div class="acc-pill-type">${isCredit?'Outstanding':a.type}</div>
     </div>`;
   }).join('')+`<div class="add-acc-pill" onclick="openSheet('acc')"><div class="add-acc-pill-icon">+</div><div>Add</div></div>`;
@@ -2512,6 +2853,7 @@ function renderSettings(){
     <div class="settings-row settings-row-static"><div class="settings-row-left"><div class="settings-row-icon">📊</div><div><div class="settings-row-label">Transactions</div><div class="settings-row-desc">Total recorded</div></div></div><div class="storage-stat">${txns.length}</div></div>
     <div class="settings-row settings-row-static"><div class="settings-row-left"><div class="settings-row-icon">🏦</div><div><div class="settings-row-label">Accounts</div><div class="settings-row-desc">Active accounts</div></div></div><div class="storage-stat">${accs.length}</div></div>
     <div class="settings-row settings-row-static"><div class="settings-row-left"><div class="settings-row-icon">🔔</div><div><div class="settings-row-label">Bills</div><div class="settings-row-desc">Active reminders</div></div></div><div class="storage-stat">${bills.filter(b=>!b.paid).length}</div></div>
+    <div class="settings-row settings-row-static"><div class="settings-row-left"><div class="settings-row-icon">🤝</div><div><div class="settings-row-label">Active Dues</div><div class="settings-row-desc">Pending money lent</div></div></div><div class="storage-stat">${DB.getDues().filter(d=>d.settledAmount<d.totalAmount).length}</div></div>
     <div class="settings-row settings-row-static" style="border-bottom:none"><div class="settings-row-left"><div class="settings-row-icon">💾</div><div><div class="settings-row-label">Data Size</div><div class="settings-row-desc">Local storage used</div></div></div><div class="storage-stat">${DB.storageSize()}</div></div>`;
 }
 
@@ -2614,6 +2956,7 @@ const FS_MAP = {
   prefs    : 'ft6_prefs',
   custcats : 'ft6_custcats',
   bills    : 'ft6_bills',
+  dues     : 'ft6_dues',
 };
 
 // Track which docs have completed their first snapshot load
