@@ -821,16 +821,6 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="form-group full"><div id="balance-hint" class="field-hint" style="display:none"></div></div>
         <div class="form-group full"><div class="flabel">Note (optional)</div><input class="finput" id="t-note" type="text" placeholder="e.g. lunch, salary…" oninput="autoCat()"/></div>
         <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="t-date" type="date"/></div>
-        <div class="form-group full" id="txn-recurring-wrap" style="display:none">
-          <div class="toggle-row" onclick="toggleTxnRecurring()" id="txn-recurring-toggle-row">
-            <span class="toggle-row-label">🔁 Repeat Monthly</span>
-            <div class="toggle-switch" id="txn-recurring-sw"></div>
-          </div>
-          <div id="txn-recurday-wrap" style="display:none;margin-top:8px">
-            <div class="flabel">Repeat on day of month</div>
-            <input class="finput" id="t-recurday" type="number" placeholder="e.g. 5" min="1" max="31" inputmode="numeric"/>
-          </div>
-        </div>
       </div>
     </div>
     <!-- Transfer fields -->
@@ -843,8 +833,19 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="form-group full"><div class="flabel">Date</div><input class="finput" id="tr-date" type="date"/></div>
       </div>
     </div>
+    <!-- Recurring toggle — shared for all types, hidden during edit -->
+    <div id="txn-recurring-wrap" style="display:none;margin:0 0 12px">
+      <div class="toggle-row" onclick="toggleTxnRecurring()" id="txn-recurring-toggle-row">
+        <span class="toggle-row-label">🔁 Repeat Monthly</span>
+        <div class="toggle-switch" id="txn-recurring-sw"></div>
+      </div>
+      <div id="txn-recurday-wrap" style="display:none;margin-top:8px">
+        <div class="flabel">Repeat on day of month</div>
+        <input class="finput" id="t-recurday" type="number" placeholder="e.g. 5" min="1" max="31" inputmode="numeric"/>
+      </div>
+    </div>
     <input type="hidden" id="edit-txn-id" value=""/>
-    <button class="save-btn" id="save-txn-btn" onclick="saveTxn()">Save Transaction</button>
+    <button class="save-btn" id="save-txn-btn" onclick="saveTxn()">Save Transaction</button
   </div>
 </div>
 
@@ -1104,7 +1105,8 @@ const DEFAULT_EXP_CATS = ['🍽️ Food','🚗 Transport','🛍️ Shopping','�
 const DEFAULT_INC_CATS = ['💼 Salary','💻 Freelance','🏢 Business','📈 Investment','🎁 Gift','💰 Other'];
 const DUE_CATS = ['🤝 Due Given', '🤝 Due Received'];
 const getAllExpCats = () => {
-  const base=[...DEFAULT_EXP_CATS,...DB.getCustomCats()].filter(c=>!DUE_CATS.includes(c));
+  const hidden=getHiddenCats();
+  const base=[...DEFAULT_EXP_CATS,...DB.getCustomCats()].filter(c=>!DUE_CATS.includes(c)&&!hidden.includes(c));
   const order=(DB.getPrefs()||{}).catOrder;
   if(!order||!order.length) return base;
   const ordered=order.filter(c=>base.includes(c));
@@ -1114,6 +1116,13 @@ const getAllExpCats = () => {
 const getAllIncCats = () => DEFAULT_INC_CATS.filter(c=>!DUE_CATS.includes(c));
 
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
+const getHiddenCats = () => (DB.getPrefs().hiddenCats||[]);
+function hideDefaultCat(cat){
+  const prefs=DB.getPrefs(); prefs.hiddenCats=[...new Set([...(prefs.hiddenCats||[]),cat])]; DB.savePrefs(prefs);
+}
+function unhideDefaultCat(cat){
+  const prefs=DB.getPrefs(); prefs.hiddenCats=(prefs.hiddenCats||[]).filter(c=>c!==cat); DB.savePrefs(prefs);
+}
 // Robust emoji detection + auto-sanitize stored values
 function startsWithEmoji(str){
   if(!str) return false;
@@ -1289,9 +1298,10 @@ function openSheet(which){
     document.getElementById('t-date').value=defDate; document.getElementById('tr-date').value=defDate;
     document.getElementById('t-amount').value=''; document.getElementById('t-note').value=''; document.getElementById('tr-note').value=''; userChangedCat=false;
     const _rw=document.getElementById('txn-recurring-wrap'); if(_rw) _rw.style.display='';
-    const _rsw=document.getElementById('txn-recurring-sw'); if(_rsw) _rsw.classList.remove('on');
+    const _rsw=document.getElementById('txn-recurring-sw'); if(_rsw){_rsw.classList.remove('on');}
     const _rdw=document.getElementById('txn-recurday-wrap'); if(_rdw) _rdw.style.display='none';
-    document.getElementById('t-recurday').value='';
+    if(document.getElementById('t-recurday')) document.getElementById('t-recurday').value='';
+    txnRecurring=false;
     hideHints();
     document.getElementById('txn-overlay').classList.add('open');
     setTimeout(()=>{try{document.getElementById('t-amount').focus();}catch(e){}},320);
@@ -1324,6 +1334,8 @@ function openEditSheet(txnId){
     try{document.getElementById('t-cat').value=txn.category;document.getElementById('t-acc').value=txn.accountId;}catch(e){}
     document.getElementById('t-note').value=txn.note||''; document.getElementById('t-date').value=txn.date;
   }
+  // Hide recurring toggle during edit — recurring is set at creation only
+  const _erw=document.getElementById('txn-recurring-wrap'); if(_erw) _erw.style.display='none';
   document.getElementById('txn-overlay').classList.add('open');
   setTimeout(()=>{try{document.getElementById('t-amount').focus();}catch(e){}},320);
 }
@@ -1334,7 +1346,7 @@ function setTxnType(type){
   document.getElementById('ei-fields').style.display=type==='transfer'?'none':'block';
   document.getElementById('tr-fields').style.display=type==='transfer'?'block':'none';
   const rw=document.getElementById('txn-recurring-wrap');
-  if(rw) rw.style.display=(type==='expense'||type==='income')?'':' none';
+  if(rw) rw.style.display=''; // show for all types including transfer
   if(type!=='transfer') fillCatSelect(type);
   hideHints(); checkBalanceHint();
 }
@@ -1482,6 +1494,19 @@ function saveTxn(){
       if(amount>effectiveBal) return toast('Insufficient balance. Available: '+fmt(effectiveBal));
     }
     const obj={type:'transfer',amount,accountId:from,toAccountId:to,note,date,category:'🔄 Transfer'};
+    // Preserve recurring on transfer edit
+    if(editingTxnId){
+      const origT=DB.getTxns().find(t=>t.id===editingTxnId);
+      if(origT&&origT.recurring){obj.recurring=true;obj.recurDay=origT.recurDay;}
+    }
+    // New recurring transfer
+    if(!editingTxnId){
+      const txnRecSwT=document.getElementById('txn-recurring-sw');
+      if(txnRecSwT&&txnRecSwT.classList.contains('on')){
+        const rdT=parseInt(document.getElementById('t-recurday').value)||0;
+        if(rdT>=1&&rdT<=31){obj.recurring=true;obj.recurDay=rdT;}
+      }
+    }
     if(editingTxnId){obj.id=editingTxnId;DB.updateTxn(obj);toast('✅ Transfer updated');}
     else{
       DB.addTxn(obj);
@@ -1973,8 +1998,8 @@ function delBill(id){
   });
 }
 
-function openCatEditSafe(btn){ openCatEdit(btn.getAttribute('data-cedit')); }
-function deleteCatSafe(btn){ deleteCat(btn.getAttribute('data-cdel')); }
+function openCatEditSafe(btn){ openCatEdit(decodeURIComponent(btn.getAttribute('data-cedit'))); }
+function deleteCatSafe(btn){ deleteCat(decodeURIComponent(btn.getAttribute('data-cdel'))); }
 function openCatEdit(cat){
   const b=DB.getBudgets();
   const titleEl=document.getElementById('cat-sheet-title');
@@ -2022,10 +2047,18 @@ function saveCatEdit(){
 }
 
 function deleteCat(cat){
-  showConfirm('🗂️','Delete Category?',`Remove "${getCatName(cat)}"? Existing transactions keep their label.`,'Delete',()=>{
-    const customs=DB.getCustomCats().filter(c=>c!==cat); DB.saveCustomCats(customs);
+  const label=isDefaultCat(cat)?'Hide':'Delete';
+  const msg=isDefaultCat(cat)?
+    `Hide "${getCatName(cat)}" from budget & transaction lists? You can add it back from Settings.`:
+    `Remove "${getCatName(cat)}"? Existing transactions keep their label.`;
+  showConfirm('🗂️',`${label} Category?`,msg,label,()=>{
+    if(isDefaultCat(cat)){
+      hideDefaultCat(cat);
+    } else {
+      const customs=DB.getCustomCats().filter(c=>c!==cat); DB.saveCustomCats(customs);
+    }
     const b=DB.getBudgets(); if(b.cats)delete b.cats[cat]; DB.saveBudgets(b);
-    renderBudget(); toast('Category removed');
+    renderBudget(); renderHome(); toast(`${label}d`);
   });
 }
 
@@ -2053,12 +2086,9 @@ function renderMonthlySummary(){
   const now=new Date();
   const monthName=now.toLocaleString('en-IN',{month:'long',year:'numeric'});
   if(!curTotal){
-    el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
-        <div style="font-size:11px;color:var(--text3)">${monthName}</div>
-      </div>
-      <div style="font-size:13px;color:var(--text3)">No spending this month yet.</div>
+    el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
+      <div style="font-size:12px;color:var(--text3)">No spending yet</div>
     </div>`;
     return;
   }
@@ -2070,36 +2100,73 @@ function renderMonthlySummary(){
   if(prevTotal>0){
     const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
     const up=diff>0;
-    cmpHtml=`<div style="font-size:12px;color:${up?'var(--expense)':'var(--income)'};margin-top:4px">${up?'↑':'↓'} ${Math.abs(diff)}% ${up?'more':'less'} than last month</div>`;
+    cmpHtml=`<div style="font-size:11px;color:${up?'var(--expense)':'var(--income)'};font-weight:600">${up?'↑':'↓'} ${Math.abs(diff)}% vs last month</div>`;
   }
-  // Category breakdown — top 5
+  // Build top-5 category data with pie colors
   const catMap={};
   curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
-  const top5=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const barsHtml=top5.map(([cat,amt])=>{
+  const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const top5=sorted.slice(0,5);
+  const PIE_COLORS=['#c8f55a','#60a5fa','#f87171','#fbbf24','#a78bfa'];
+  // SVG Donut chart
+  const R=52, r=32, cx=64, cy=64;
+  let startAngle=-Math.PI/2;
+  let slices='';
+  top5.forEach(([cat,amt],i)=>{
+    const angle=(amt/curTotal)*2*Math.PI;
+    const endAngle=startAngle+angle;
+    const x1=cx+R*Math.cos(startAngle), y1=cy+R*Math.sin(startAngle);
+    const x2=cx+R*Math.cos(endAngle),   y2=cy+R*Math.sin(endAngle);
+    const ix1=cx+r*Math.cos(startAngle),iy1=cy+r*Math.sin(startAngle);
+    const ix2=cx+r*Math.cos(endAngle),  iy2=cy+r*Math.sin(endAngle);
+    const large=angle>Math.PI?1:0;
+    const color=PIE_COLORS[i%PIE_COLORS.length];
+    slices+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${large},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="${color}" opacity="0.92"/>`;
+    startAngle=endAngle;
+  });
+  // "Other" slice if needed
+  if(sorted.length>5){
+    const otherAmt=sorted.slice(5).reduce((s,[,v])=>s+v,0);
+    const angle=(otherAmt/curTotal)*2*Math.PI;
+    const endAngle=startAngle+angle;
+    const x1=cx+R*Math.cos(startAngle),y1=cy+R*Math.sin(startAngle);
+    const x2=cx+R*Math.cos(endAngle),  y2=cy+R*Math.sin(endAngle);
+    const ix1=cx+r*Math.cos(startAngle),iy1=cy+r*Math.sin(startAngle);
+    const ix2=cx+r*Math.cos(endAngle),  iy2=cy+r*Math.sin(endAngle);
+    const large=angle>Math.PI?1:0;
+    slices+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${large},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="var(--surface3)" opacity="0.8"/>`;
+  }
+  const svgChart=`<svg width="128" height="128" viewBox="0 0 128 128" style="flex-shrink:0">
+    ${slices}
+    <circle cx="${cx}" cy="${cy}" r="${r-2}" fill="var(--surface)"/>
+    <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="9" fill="var(--text3)" font-family="Outfit,sans-serif">Total</text>
+    <text x="${cx}" y="${cy+9}" text-anchor="middle" font-size="11" fill="var(--text)" font-weight="600" font-family="Outfit,sans-serif">${fmt(curTotal).replace('₹','')}</text>
+  </svg>`;
+  // Legend rows
+  const legendRows=top5.map(([cat,amt],i)=>{
     const pct=Math.round((amt/curTotal)*100);
-    return `<div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);font-weight:500">
-          <span>${getEmoji(cat)}</span><span>${getCatName(cat)}</span>
-        </div>
-        <div style="font-family:var(--num);font-size:12px;color:var(--text2);font-weight:600">${fmt(amt)}</div>
-      </div>
-      <div style="background:var(--surface3);border-radius:100px;height:4px;overflow:hidden">
-        <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:100px"></div>
-      </div>
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;min-width:0">
+      <div style="width:8px;height:8px;border-radius:50%;background:${PIE_COLORS[i]};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${getEmoji(cat)} ${getCatName(cat)}</div>
+      <div style="font-size:11px;font-family:var(--num);color:var(--text);font-weight:600;flex-shrink:0">${pct}%</div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:18px;margin-bottom:12px;box-shadow:var(--shadow)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
-      <div style="font-size:11px;color:var(--text3)">${monthName}</div>
+  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">${monthName}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--num);font-size:18px;font-weight:700;color:var(--expense)">${fmt(curTotal)}</div>
+        ${cmpHtml}
+      </div>
     </div>
-    <div style="font-family:var(--num);font-size:24px;font-weight:600;color:var(--expense)">${fmt(curTotal)}</div>
-    ${cmpHtml}
-    <div style="margin-top:14px">${barsHtml}</div>
-    <div style="text-align:right;margin-top:8px">
-      <span style="font-size:12px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">See full budget →</span>
+    <div style="display:flex;align-items:center;gap:14px">
+      ${svgChart}
+      <div style="flex:1;min-width:0">${legendRows}
+        <div style="margin-top:6px"><span style="font-size:11px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">Full budget →</span></div>
+      </div>
     </div>
   </div>`;
 }
@@ -2128,16 +2195,17 @@ function renderRecurringDue(){
   const due=txns.filter(t=>{
     if(!t.recurring||!t.recurDay) return false;
     if(t.recurDay!==todayDay) return false;
-    // Template must be from a previous month
     if(t.date.startsWith(ym)) return false;
-    // Check no confirmation exists this month for same account+category+recurDay
-    const already=txns.some(x=>
-      !x.recurring &&
-      x.accountId===t.accountId &&
-      x.category===t.category &&
-      x.date.startsWith(ym) &&
-      x._recurDay===t.recurDay
-    );
+    // Duplicate check — for transfer, also check toAccountId
+    const already=txns.some(x=>{
+      if(x.recurring) return false;
+      if(x.accountId!==t.accountId) return false;
+      if(x.category!==t.category) return false;
+      if(!x.date.startsWith(ym)) return false;
+      if(x._recurDay!==t.recurDay) return false;
+      if(t.type==='transfer'&&x.toAccountId!==t.toAccountId) return false;
+      return true;
+    });
     return !already;
   });
 
@@ -2716,8 +2784,8 @@ function renderBudget(){
         <div style="display:flex;align-items:center;gap:6px">
           <div class="cat-budget-info">${catLimit>0?`${fmt(catSpent)} / ${fmt(catLimit)}`:catSpent>0?fmt(catSpent)+' spent':''}</div>
           <div class="cat-actions">
-            <button class="cat-action-btn edit" data-cedit="${cat}" onclick="openCatEditSafe(this)">edit</button>
-            ${isCustom?`<button class="cat-action-btn del" onclick="deleteCat('${cat}')">✕</button>`:''}
+            <button class="cat-action-btn edit" data-cedit="${encodeURIComponent(cat)}" onclick="openCatEditSafe(this)">edit</button>
+            <button class="cat-action-btn del" data-cdel="${encodeURIComponent(cat)}" onclick="deleteCatSafe(this)">✕</button>
           </div>
           <div class="drag-handle" data-drag-type="category" data-drag-id="${cat.replace(/"/g,'&quot;')}" title="Drag to reorder">≡</div>
         </div>
