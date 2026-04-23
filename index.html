@@ -1984,8 +1984,10 @@ function reorderArray(arr, keyFn, srcKey, tgtKey){
 }
 
 /* ── BUDGET ── */
-function saveCatBudget(cat){
-  const input=document.querySelector(`[data-catinput="${cat}"]`);
+function saveCatBudgetSafe(btn){
+  const cat=decodeURIComponent(btn.getAttribute('data-catkey'));
+  const row=btn.closest('.cat-budget-row');
+  const input=row?row.querySelector('.cat-budget-input'):null;
   const val=parseFloat(input?.value)||0;
   const b=DB.getBudgets(); if(!b.cats)b.cats={};
   if(val>0)b.cats[cat]=val; else delete b.cats[cat];
@@ -2049,9 +2051,9 @@ function saveCatEdit(){
 function deleteCat(cat){
   const label=isDefaultCat(cat)?'Hide':'Delete';
   const msg=isDefaultCat(cat)?
-    `Hide "${getCatName(cat)}" from budget & transaction lists? You can add it back from Settings.`:
-    `Remove "${getCatName(cat)}"? Existing transactions keep their label.`;
-  showConfirm('🗂️',`${label} Category?`,msg,label,()=>{
+    `Are you sure you want to hide "${getCatName(cat)}"? It will disappear from budget and transaction lists. Existing transactions keep their label.`:
+    `Are you sure you want to delete "${getCatName(cat)}"? This cannot be undone. Existing transactions keep their label.`;
+  showConfirm('🗂️',`${label} Category?`,msg,`Yes, ${label}`,()=>{
     if(isDefaultCat(cat)){
       hideDefaultCat(cat);
     } else {
@@ -2100,7 +2102,7 @@ function renderMonthlySummary(){
   if(prevTotal>0){
     const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
     const up=diff>0;
-    cmpHtml=`<div style="font-size:11px;color:${up?'var(--expense)':'var(--income)'};font-weight:600">${up?'↑':'↓'} ${Math.abs(diff)}% vs last month</div>`;
+    cmpHtml=`<div style="font-size:10px;color:${up?'var(--expense)':'var(--income)'};font-weight:600;margin-top:1px">${up?'↑':'↓'}${Math.abs(diff)}% vs last</div>`;
   }
   // Build top-5 category data with pie colors
   const catMap={};
@@ -2136,36 +2138,37 @@ function renderMonthlySummary(){
     const large=angle>Math.PI?1:0;
     slices+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${large},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="var(--surface3)" opacity="0.8"/>`;
   }
-  const svgChart=`<svg width="128" height="128" viewBox="0 0 128 128" style="flex-shrink:0">
+  const svgChart=`<svg width="100" height="100" viewBox="0 0 128 128" style="flex-shrink:0">
     ${slices}
     <circle cx="${cx}" cy="${cy}" r="${r-2}" fill="var(--surface)"/>
-    <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="9" fill="var(--text3)" font-family="Outfit,sans-serif">Total</text>
-    <text x="${cx}" y="${cy+9}" text-anchor="middle" font-size="11" fill="var(--text)" font-weight="600" font-family="Outfit,sans-serif">${fmt(curTotal).replace('₹','')}</text>
+    <text x="${cx}" y="${cy-3}" text-anchor="middle" font-size="9" fill="var(--text3)" font-family="Outfit,sans-serif">Spent</text>
+    <text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="12" fill="var(--text)" font-weight="700" font-family="Outfit,sans-serif">${fmt(curTotal).replace('₹','')}</text>
   </svg>`;
   // Legend rows
   const legendRows=top5.map(([cat,amt],i)=>{
     const pct=Math.round((amt/curTotal)*100);
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;min-width:0">
-      <div style="width:8px;height:8px;border-radius:50%;background:${PIE_COLORS[i]};flex-shrink:0"></div>
-      <div style="flex:1;min-width:0;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${getEmoji(cat)} ${getCatName(cat)}</div>
-      <div style="font-size:11px;font-family:var(--num);color:var(--text);font-weight:600;flex-shrink:0">${pct}%</div>
+    return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;min-width:0">
+      <div style="width:7px;height:7px;border-radius:50%;background:${PIE_COLORS[i]};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0;font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${getEmoji(cat)} ${getCatName(cat)}</div>
+      <div style="font-size:10px;font-family:var(--num);color:var(--text3);font-weight:600;flex-shrink:0">${pct}%</div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;margin-bottom:10px;box-shadow:var(--shadow);max-width:360px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">${monthName}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em">This Month</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">${monthName}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-family:var(--num);font-size:18px;font-weight:700;color:var(--expense)">${fmt(curTotal)}</div>
+        <div style="font-family:var(--num);font-size:16px;font-weight:700;color:var(--expense)">${fmt(curTotal)}</div>
         ${cmpHtml}
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:14px">
+    <div style="display:flex;align-items:center;gap:10px">
       ${svgChart}
-      <div style="flex:1;min-width:0">${legendRows}
-        <div style="margin-top:6px"><span style="font-size:11px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">Full budget →</span></div>
+      <div style="flex:1;min-width:0">
+        ${legendRows}
+        <div style="margin-top:4px"><span style="font-size:10px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">Full budget →</span></div>
       </div>
     </div>
   </div>`;
@@ -2402,12 +2405,16 @@ function saveInlineCat(){
   const customs=DB.getCustomCats();
   customs.push(val);
   DB.saveCustomCats(customs);
+  closeSheet('newcat');
+  // Re-fill dropdown and select the new category
   fillCatSelect(type);
   const sel=document.getElementById('t-cat');
+  // Remove the __new__ option so it doesn't accidentally re-trigger
+  const newOpt=[...sel.options].find(o=>o.value==='__new__');
+  if(newOpt) newOpt.remove();
   const opt=[...sel.options].find(o=>o.value===val);
   if(opt) sel.value=val;
   userChangedCat=true;
-  closeSheet('newcat');
   renderBudget();
   toast('✅ Category added');
 }
@@ -2792,8 +2799,8 @@ function renderBudget(){
       </div>
       ${catLimit>0?`<div class="progress-track" style="margin-bottom:8px"><div class="progress-fill ${cf}" style="width:${cp}%"></div></div>`:''}
       <div class="cat-budget-set">
-        <input class="cat-budget-input" type="number" placeholder="${catLimit>0?'Update limit':'Set limit (₹)'}" min="0" inputmode="decimal" data-catinput="${cat}"/>
-        <button class="cat-budget-btn" onclick="saveCatBudget('${cat}')">Set</button>
+        <input class="cat-budget-input" type="number" placeholder="${catLimit>0?'Update limit':'Set limit (₹)'}" min="0" inputmode="decimal" data-catkey="${encodeURIComponent(cat)}"/>
+        <button class="cat-budget-btn" data-catkey="${encodeURIComponent(cat)}" onclick="saveCatBudgetSafe(this)">Set</button>
       </div>
     </div>`;
   }).join('');
@@ -2949,8 +2956,10 @@ function txnFeedHTML(txns,showActions){
 }
 
 function delTxn(id){
-  showConfirm('🗑️','Delete Transaction?','This will permanently remove this transaction and update balances.','Delete',()=>{
-    DB.delTxn(id); refreshPage(); toast('Deleted');
+  const txn=DB.getTxns().find(t=>t.id===id);
+  const detail=txn?`${getEmoji(txn.category)} ${getCatName(txn.category)} · ${fmt(txn.amount)}`:'this transaction';
+  showConfirm('🗑️','Delete Transaction?',`Are you sure you want to delete ${detail}? This cannot be undone and will update your account balance.`,'Yes, Delete',()=>{
+    DB.delTxn(id); refreshPage(); toast('Transaction deleted');
   });
 }
 
