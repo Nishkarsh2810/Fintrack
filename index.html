@@ -1110,7 +1110,10 @@ const getAllExpCats = () => {
   const extra=base.filter(c=>!order.includes(c));
   return [...ordered,...extra];
 };
-const getAllIncCats = () => DEFAULT_INC_CATS;
+const getAllIncCats = () => {
+  const custom = JSON.parse(localStorage.getItem('ft6_custcats_inc') || '[]');
+  return [...DEFAULT_INC_CATS, ...custom];
+};
 const isDefaultCat = cat => DEFAULT_EXP_CATS.includes(cat)||DEFAULT_INC_CATS.includes(cat);
 // Robust emoji detection + auto-sanitize stored values
 function startsWithEmoji(str){
@@ -2044,11 +2047,14 @@ function saveInlineCat(){
   const val=document.getElementById('newcat-name').value.trim();
   if(!val) return toast('Enter a category name');
   const type=document.getElementById('newcat-type').value;
-  const all=[...DEFAULT_EXP_CATS,...DEFAULT_INC_CATS,...DB.getCustomCats()];
+  // Only check against the relevant list — income and expense are separate
+  const relevantCats = type==='income'
+    ? [...DEFAULT_INC_CATS, ...JSON.parse(localStorage.getItem('ft6_custcats_inc')||'[]')]
+    : [...DEFAULT_EXP_CATS, ...DB.getCustomCats()];
   const valName=getCatName(val).toLowerCase()||val.toLowerCase();
-  const existing=all.find(c=>(getCatName(c).toLowerCase()||c.toLowerCase())===valName);
+  const existing=relevantCats.find(c=>(getCatName(c).toLowerCase()||c.toLowerCase())===valName);
   if(existing){
-    // Already exists — select it
+    // Already exists in this type — select it
     fillCatSelect(type);
     const sel=document.getElementById('t-cat');
     const opt=[...sel.options].find(o=>o.value===existing);
@@ -2058,9 +2064,15 @@ function saveInlineCat(){
     toast('Already exists — selected for you');
     return;
   }
-  const customs=DB.getCustomCats();
-  customs.push(val);
-  DB.saveCustomCats(customs);
+  if(type==='income'){
+    const customs=JSON.parse(localStorage.getItem('ft6_custcats_inc')||'[]');
+    customs.push(val);
+    localStorage.setItem('ft6_custcats_inc', JSON.stringify(customs));
+  } else {
+    const customs=DB.getCustomCats();
+    customs.push(val);
+    DB.saveCustomCats(customs);
+  }
   fillCatSelect(type);
   const sel=document.getElementById('t-cat');
   const opt=[...sel.options].find(o=>o.value===val);
