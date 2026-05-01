@@ -1441,13 +1441,13 @@ function fillCatSelect(type){
 function fillAccSelect(selId){
   const s=document.getElementById(selId); if(!s) return;
   const accs=DB.getAccounts();
-  s.innerHTML=accs.length?accs.map(a=>`<option value="${a.id}">${a.name}</option>`):'<option value="">No accounts yet</option>';
+  s.innerHTML=accs.length?accs.map(a=>`<option value="${a.id}">${getAccIcon(a)} ${a.name}</option>`):'<option value="">No accounts yet</option>';
 }
 function syncToDropdown(){
   const fromVal=document.getElementById('t-from')?.value;
   const toSel=document.getElementById('t-to'); if(!toSel) return;
   const accs=DB.getAccounts().filter(a=>a.id!==fromVal);
-  toSel.innerHTML=accs.length?accs.map(a=>`<option value="${a.id}">${a.name}</option>`).join(''):'<option value="">No other accounts</option>';
+  toSel.innerHTML=accs.length?accs.map(a=>`<option value="${a.id}">${getAccIcon(a)} ${a.name}</option>`).join(''):'<option value="">No other accounts</option>';
   checkTransferHint();
 }
 
