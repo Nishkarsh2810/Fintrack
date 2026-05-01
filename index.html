@@ -661,7 +661,6 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
         <div class="sec-header"><div class="sec-title">Accounts</div><div class="sec-link" onclick="nav('accounts')">Manage</div></div>
         <div class="accs-wrap"><div class="accs-scroll" id="home-accs"></div></div>
       </div>
-      <div id="home-monthly-summary" class="span-full"></div>
       <div id="home-dues" class="span-full"></div>
       <div>
         <div class="sec-header"><div class="sec-title" id="home-feed-title">Recent</div><div class="sec-link" onclick="nav('txns')">See all</div></div>
@@ -2047,14 +2046,12 @@ function saveInlineCat(){
   const val=document.getElementById('newcat-name').value.trim();
   if(!val) return toast('Enter a category name');
   const type=document.getElementById('newcat-type').value;
-  // Only check against the relevant list — income and expense are separate
   const relevantCats = type==='income'
     ? [...DEFAULT_INC_CATS, ...JSON.parse(localStorage.getItem('ft6_custcats_inc')||'[]')]
     : [...DEFAULT_EXP_CATS, ...DB.getCustomCats()];
   const valName=getCatName(val).toLowerCase()||val.toLowerCase();
   const existing=relevantCats.find(c=>(getCatName(c).toLowerCase()||c.toLowerCase())===valName);
   if(existing){
-    // Already exists in this type — select it
     fillCatSelect(type);
     const sel=document.getElementById('t-cat');
     const opt=[...sel.options].find(o=>o.value===existing);
@@ -2084,74 +2081,6 @@ function saveInlineCat(){
 }
 
 /* ── MONTHLY SUMMARY (home donut chart) ── */
-function renderMonthlySummary(){
-  const el=document.getElementById('home-monthly-summary'); if(!el) return;
-  const ym=thisYM();
-  const txns=DB.getTxns();
-  const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
-  const curTotal=curExp.reduce((s,t)=>s+t.amount,0);
-  const now=new Date();
-  const monthName=now.toLocaleString('en-IN',{month:'long',year:'numeric'});
-  if(!curTotal){
-    el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em">This Month</div>
-      <div style="font-size:12px;color:var(--text3)">No spending yet</div>
-    </div>`;
-    return;
-  }
-  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
-  const prevYM=prevDate.getFullYear()+'-'+String(prevDate.getMonth()+1).padStart(2,'0');
-  const prevTotal=txns.filter(t=>t.type==='expense'&&t.date.startsWith(prevYM)).reduce((s,t)=>s+t.amount,0);
-  let cmpHtml='';
-  if(prevTotal>0){
-    const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
-    const up=diff>0;
-    cmpHtml=`<div style="font-size:10px;color:${up?'var(--expense)':'var(--income)'};font-weight:600;margin-top:1px">${up?'↑':'↓'}${Math.abs(diff)}% vs last</div>`;
-  }
-  const catMap={};
-  curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
-  const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-  const top5=sorted.slice(0,5);
-  const PIE_COLORS=['#c8f55a','#60a5fa','#f87171','#fbbf24','#a78bfa'];
-  const R=52,r=32,cx=64,cy=64;
-  let startAngle=-Math.PI/2;
-  let slices='';
-  top5.forEach(([cat,amt],i)=>{
-    const angle=(amt/curTotal)*2*Math.PI;
-    const endAngle=startAngle+angle;
-    const x1=cx+R*Math.cos(startAngle),y1=cy+R*Math.sin(startAngle);
-    const x2=cx+R*Math.cos(endAngle),  y2=cy+R*Math.sin(endAngle);
-    const ix1=cx+r*Math.cos(startAngle),iy1=cy+r*Math.sin(startAngle);
-    const ix2=cx+r*Math.cos(endAngle),  iy2=cy+r*Math.sin(endAngle);
-    const large=angle>Math.PI?1:0;
-    slices+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${large},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="${PIE_COLORS[i%PIE_COLORS.length]}" opacity="0.92"/>`;
-    startAngle=endAngle;
-  });
-  if(sorted.length>5){
-    const otherAmt=sorted.slice(5).reduce((s,[,v])=>s+v,0);
-    const angle=(otherAmt/curTotal)*2*Math.PI;
-    const endAngle=startAngle+angle;
-    const x1=cx+R*Math.cos(startAngle),y1=cy+R*Math.sin(startAngle);
-    const x2=cx+R*Math.cos(endAngle),  y2=cy+R*Math.sin(endAngle);
-    const ix1=cx+r*Math.cos(startAngle),iy1=cy+r*Math.sin(startAngle);
-    const ix2=cx+r*Math.cos(endAngle),  iy2=cy+r*Math.sin(endAngle);
-    const large=angle>Math.PI?1:0;
-    slices+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${large},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="var(--surface3)" opacity="0.8"/>`;
-  }
-  const svgChart=`<svg width="100" height="100" viewBox="0 0 128 128" style="flex-shrink:0">${slices}<circle cx="${cx}" cy="${cy}" r="${r-2}" fill="var(--surface)"/><text x="${cx}" y="${cy-3}" text-anchor="middle" font-size="9" fill="var(--text3)" font-family="Outfit,sans-serif">Spent</text><text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="12" fill="var(--text)" font-weight="700" font-family="Outfit,sans-serif">${fmt(curTotal).replace('₹','')}</text></svg>`;
-  const legendRows=top5.map(([cat,amt],i)=>{
-    const pct=Math.round((amt/curTotal)*100);
-    return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;min-width:0"><div style="width:7px;height:7px;border-radius:50%;background:${PIE_COLORS[i]};flex-shrink:0"></div><div style="flex:1;min-width:0;font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${getEmoji(cat)} ${getCatName(cat)}</div><div style="font-size:10px;font-family:var(--num);color:var(--text3);font-weight:600;flex-shrink:0">${pct}%</div></div>`;
-  }).join('');
-  el.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;margin-bottom:10px;box-shadow:var(--shadow)">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-      <div><div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em">This Month</div><div style="font-size:10px;color:var(--text3);margin-top:1px">${monthName}</div></div>
-      <div style="text-align:right"><div style="font-family:var(--num);font-size:16px;font-weight:700;color:var(--expense)">${fmt(curTotal)}</div>${cmpHtml}</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">${svgChart}<div style="flex:1;min-width:0">${legendRows}<div style="margin-top:4px"><span style="font-size:10px;color:var(--accent);font-weight:600;cursor:pointer" onclick="nav('budget')">Full budget →</span></div></div></div>
-  </div>`;
-}
-
 /* ── RECURRING DUE ── */
 let txnRecurring=false;
 function toggleTxnRecurring(){
@@ -2353,7 +2282,6 @@ function renderHome(){
   renderInsight();
   renderSmartInsights();
   renderHomeAccs();
-  renderMonthlySummary();
   renderDues();
   renderHomeFeed();
   renderHomeBudgetPreview();
