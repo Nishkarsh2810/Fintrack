@@ -576,6 +576,31 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
 .pin-key.del:active,.pin-key.del.pressed{background:var(--surface2);border-color:var(--border);}
 .pin-key.empty{border:none;background:transparent;cursor:default;pointer-events:none;}
 
+
+/* ── INSIGHTS PAGE ── */
+.insights-page-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);}
+.ins-section-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.09em;margin-bottom:16px;display:flex;align-items:center;gap:7px;}
+.ins-section-title span{font-size:15px;}
+.ins-donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.ins-legend{display:flex;flex-direction:column;gap:8px;flex:1;min-width:120px;}
+.ins-legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+.ins-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.ins-legend-val{font-family:var(--num);font-weight:600;color:var(--text);margin-left:auto;}
+.ins-bar-list{display:flex;flex-direction:column;gap:10px;}
+.ins-bar-row{display:flex;flex-direction:column;gap:5px;}
+.ins-bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);}
+.ins-bar-label span:last-child{font-family:var(--num);font-weight:600;color:var(--text);}
+.ins-bar-track{background:var(--surface3);border-radius:100px;height:7px;overflow:hidden;}
+.ins-bar-fill{height:100%;border-radius:100px;transition:width .5s ease;}
+.ins-trend-wrap{display:flex;align-items:flex-end;gap:6px;height:120px;padding-bottom:4px;}
+.ins-trend-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.ins-trend-bars{display:flex;align-items:flex-end;gap:3px;flex:1;width:100%;}
+.ins-trend-bar{flex:1;border-radius:4px 4px 0 0;min-height:3px;transition:height .4s ease;}
+.ins-trend-label{font-size:9px;color:var(--text3);font-weight:600;text-align:center;white-space:nowrap;}
+.ins-trend-val{font-size:9px;color:var(--text3);font-family:var(--num);text-align:center;}
+.ins-empty{text-align:center;padding:20px;color:var(--text3);font-size:13px;}
+.see-insights-btn{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border2);border-radius:100px;padding:9px 16px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;margin-bottom:14px;}
+.see-insights-btn:hover{border-color:var(--accent);color:var(--accent);}
 </style>
 </head>
 <body>
@@ -622,6 +647,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     <button class="sidebar-item" data-page="budget"   onclick="nav('budget',this)"><span class="si-icon">🎯</span>Budget</button>
     <button class="sidebar-item" data-page="accounts" onclick="nav('accounts',this)"><span class="si-icon">🏦</span>Accounts</button>
     <button class="sidebar-item" data-page="bills"    onclick="nav('bills',this)"><span class="si-icon">🔔</span>Bills</button>
+    <button class="sidebar-item" data-page="insights" onclick="nav('insights',this)"><span class="si-icon">📊</span>Insights</button>
     <button class="sidebar-item" data-page="settings" onclick="nav('settings',this)"><span class="si-icon">⚙️</span>Settings</button>
   </div>
   <button class="sidebar-fab" onclick="openSheet('txn')">+ Add Transaction</button>
@@ -656,6 +682,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     <div id="budget-alerts-home"></div>
     <div class="insights-row" id="smart-insights"></div>
     <div class="insight-chip"><span>💡</span><span id="insight-text">Add transactions to see insights.</span></div>
+    <button class="see-insights-btn" onclick="nav('insights')">📊 See Insights →</button>
     <div class="desktop-two-col">
       <div class="span-full">
         <div class="sec-header"><div class="sec-title">Accounts</div><div class="sec-link" onclick="nav('accounts')">Manage</div></div>
@@ -784,6 +811,38 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:
     </div>
   </div>
 </section>
+
+<!-- ═══ INSIGHTS ═══ -->
+<section class="page" id="page-insights">
+  <div class="topbar">
+    <div class="app-wordmark">Fin<em>Track</em></div>
+    <div class="topbar-actions"><span style="font-size:12px;color:var(--text3)" id="insights-month-lbl"></span></div>
+  </div>
+  <div class="scroll-area" style="padding-top:4px">
+    <!-- Section 1: This Month Overview -->
+    <div class="insights-page-section">
+      <div class="ins-section-title"><span>📊</span>This Month Overview</div>
+      <div id="ins-overview"></div>
+    </div>
+    <!-- Section 2: Spending by Category -->
+    <div class="insights-page-section">
+      <div class="ins-section-title"><span>🍩</span>Spending by Category</div>
+      <div id="ins-cat-donut"></div>
+    </div>
+
+    <!-- Section 4: Top 5 Categories All Time -->
+    <div class="insights-page-section">
+      <div class="ins-section-title"><span>🏆</span>Top 5 Categories This Month</div>
+      <div id="ins-top5"></div>
+    </div>
+    <!-- Section 5: Income vs Expense by Month -->
+    <div class="insights-page-section">
+      <div class="ins-section-title"><span>⚖️</span>Income vs Expenses <span style="font-size:10px;color:var(--text3);font-weight:500;text-transform:none;letter-spacing:0">(last 6 months)</span></div>
+      <div id="ins-inc-exp"></div>
+    </div>
+  </div>
+</section>
+
 
 </div><!-- /main-area -->
 </div><!-- /shell -->
@@ -1066,7 +1125,18 @@ const DB = {
       .reduce((s,t)=>{
         if(t.type==='income')   return t.accountId===id ? s+t.amount : s;
         if(t.type==='expense')  return t.accountId===id ? s-t.amount : s;
-        if(t.type==='transfer') return t.accountId===id ? s-t.amount : t.toAccountId===id ? s+t.amount : s;
+        if(t.type==='transfer'){
+          const isCredit=this.isCredit(id);
+          if(t.accountId===id){
+            // Transfer FROM this account
+            // Credit card: sending money out doesn't change outstanding (not a real debit)
+            return isCredit ? s : s-t.amount;
+          } else if(t.toAccountId===id){
+            // Transfer TO this account
+            // Credit card: receiving money = paying off debt = reduce outstanding
+            return isCredit ? s+t.amount : s+t.amount;
+          }
+        }
         return s;
       }, open);
   },
@@ -1212,6 +1282,7 @@ function nav(pageId, btnEl) {
   if(pageId==='accounts') renderAccounts();
   if(pageId==='bills')    renderBills();
   if(pageId==='settings') renderSettings();
+  if(pageId==='insights') renderInsights();
 }
 
 /* ── DATE FILTER ── */
@@ -1459,7 +1530,11 @@ function txnRelease(oldTxn, accId){
   if(!isFrom&&!isTo) return 0;
   if(oldTxn.type==='income')   return isFrom?-oldTxn.amount:0;
   if(oldTxn.type==='expense')  return isFrom? oldTxn.amount:0;
-  if(oldTxn.type==='transfer') return isFrom? oldTxn.amount:isTo?-oldTxn.amount:0;
+  if(oldTxn.type==='transfer'){
+    const isCredit=DB.isCredit(accId);
+    if(isFrom) return isCredit ? 0 : oldTxn.amount;   // credit FROM: no balance change was made
+    if(isTo)   return -oldTxn.amount;                  // credit TO or normal TO: reverse the add
+  }
   return 0;
 }
 function saveTxn(){
@@ -2269,9 +2344,13 @@ function refreshPage(){
 
 /* ── RENDER: HOME ── */
 function renderDashboardNumbers(){
+  const ym=thisYM();
+  const txns=DB.getTxns();
+  const monthInc=txns.filter(t=>t.type==='income'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
+  const monthExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
   document.getElementById('hero-bal').textContent=fmt(DB.totalBal());
-  document.getElementById('hero-inc').textContent=fmt(DB.totalInc());
-  document.getElementById('hero-exp').textContent=fmt(DB.totalExp());
+  document.getElementById('hero-inc').textContent=fmt(monthInc);
+  document.getElementById('hero-exp').textContent=fmt(monthExp);
 }
 
 function renderHome(){
@@ -2339,37 +2418,21 @@ function renderInsight(){
 function renderSmartInsights(){
   const el=document.getElementById('smart-insights'); if(!el) return;
   const txns=DB.getTxns();
-  const now=new Date();
   const ym=thisYM();
-  // Previous month
+  const now=new Date();
+  const monthName=now.toLocaleString('en-IN',{month:'long',year:'numeric'});
   const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
   const prevYM=prevDate.toISOString().substring(0,7);
-  const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
-  const prevExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(prevYM));
-  const curTotal=curExp.reduce((s,t)=>s+t.amount,0);
-  const prevTotal=prevExp.reduce((s,t)=>s+t.amount,0);
-  if(!curTotal){el.innerHTML='';return;}
+  const prevMonthName=prevDate.toLocaleString('en-IN',{month:'long'});
+  const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
+  const prevExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(prevYM)).reduce((s,t)=>s+t.amount,0);
+  if(!curExp&&!prevExp){el.innerHTML='';return;}
   let chips='';
-  // Month vs month
-  if(prevTotal>0){
-    const diff=Math.round(((curTotal-prevTotal)/prevTotal)*100);
-    const up=diff>0;
-    const sign=up?'+':'';
-    chips+=`<div class="insight-stat-chip ${up?'up':'down'}"><span class="isc-icon">${up?'📈':'📉'}</span><span>${sign}${diff}% vs last month &nbsp;·&nbsp; <span class="isc-val">${fmt(curTotal)}</span> spent</span></div>`;
-  } else {
-    chips+=`<div class="insight-stat-chip neutral"><span class="isc-icon">📊</span><span>Spent <span class="isc-val">${fmt(curTotal)}</span> this month</span></div>`;
-  }
-  // Top category
+  // Top category this month
   const catMap={};
-  curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+  txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
   const topCat=Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
-  if(topCat) chips+=`<div class="insight-stat-chip neutral"><span class="isc-icon">🏆</span><span>Top: <strong>${getCatName(topCat[0])}</strong> &nbsp;·&nbsp; <span class="isc-val">${fmt(topCat[1])}</span></span></div>`;
-  // Biggest single expense
-  const biggest=curExp.reduce((max,t)=>t.amount>max.amount?t:max,{amount:0});
-  if(biggest.amount>0){
-    const note=biggest.note?` (${biggest.note})`:'';
-    chips+=`<div class="insight-stat-chip up"><span class="isc-icon">💸</span><span>Biggest: <span class="isc-val">${fmt(biggest.amount)}</span>${note} · ${getCatName(biggest.category)}</span></div>`;
-  }
+  if(topCat) chips+=`<div class="insight-stat-chip neutral"><span class="isc-icon">🏆</span><span>Most spent on: <span class="isc-val">${getCatName(topCat[0])}</span> (${fmt(topCat[1])})</span></div>`;
   el.innerHTML=chips;
 }
 
@@ -2821,6 +2884,191 @@ function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;el.classList.add('show');
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+
+/* ── RENDER: INSIGHTS ── */
+function renderInsights(){
+  const txns = DB.getTxns();
+  const now  = new Date();
+  const ym   = thisYM();
+  const monthName = now.toLocaleString('en-IN',{month:'long',year:'numeric'});
+  const lbl = document.getElementById('insights-month-lbl');
+  if(lbl) lbl.textContent = monthName;
+
+  const COLORS = ['#c8f55a','#60a5fa','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9'];
+
+  function getLast6(){
+    const out=[];
+    for(let i=5;i>=0;i--){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const y2=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      out.push({ym:y2,label:d.toLocaleString('en-IN',{month:'short'}),isThis:y2===ym});
+    }
+    return out;
+  }
+
+  /* ── Clean SVG Donut ── */
+  function drawDonut(containerId, slices, centerLine1, centerLine2){
+    const el=document.getElementById(containerId); if(!el) return;
+    const total=slices.reduce((s,sl)=>s+sl.val,0); if(!total) return;
+    const size=180, cx=size/2, cy=size/2;
+    const R=70, strokeW=22, gap=2.5;
+    const circ=2*Math.PI*R;
+    let offset=circ*0.25; // start from top
+    const paths=slices.map((sl,i)=>{
+      const pct=sl.val/total;
+      const dash=Math.max(circ*pct-gap,0);
+      const path=`<circle cx="${cx}" cy="${cy}" r="${R}"
+        fill="none" stroke="${sl.color}" stroke-width="${strokeW}"
+        stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}"
+        stroke-dashoffset="${offset.toFixed(2)}"
+        stroke-linecap="round"
+        style="filter:drop-shadow(0 2px 6px ${sl.color}40)"/>`;
+      offset-=circ*pct;
+      return path;
+    }).join('');
+    const svg=`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0;overflow:visible">
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--surface3)" stroke-width="${strokeW}"/>
+      ${paths}
+      <text x="${cx}" y="${cy-7}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--text)" font-family="Outfit,sans-serif">${centerLine1}</text>
+      <text x="${cx}" y="${cy+11}" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="Outfit,sans-serif">${centerLine2}</text>
+    </svg>`;
+    el.innerHTML=svg;
+  }
+
+  /* ── SECTION 1: This Month Overview ── */
+  (function(){
+    const el=document.getElementById('ins-overview'); if(!el) return;
+    const mInc=txns.filter(t=>t.type==='income'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
+    const mExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym)).reduce((s,t)=>s+t.amount,0);
+    const mSav=mInc-mExp;
+    if(!mInc&&!mExp){el.innerHTML='<div class="ins-empty">No transactions this month yet.</div>';return;}
+    const slices=[];
+    if(mInc>0) slices.push({val:mInc,color:'#4ade80'});
+    if(mExp>0) slices.push({val:mExp,color:'#f87171'});
+    const savColor=mSav>=0?'#4ade80':'#f87171';
+    const savLabel=(mSav>=0?'+':'')+fmt(mSav);
+    el.innerHTML=`<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div id="donut-overview-ring" style="flex-shrink:0"></div>
+      <div style="display:flex;flex-direction:column;gap:14px;flex:1;min-width:130px">
+        ${mInc>0?`<div style="display:flex;align-items:center;gap:10px">
+          <div style="width:3px;height:36px;border-radius:2px;background:#4ade80;flex-shrink:0"></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Income</div>
+          <div style="font-family:var(--num);font-size:18px;font-weight:700;color:#4ade80">${fmt(mInc)}</div></div></div>`:''}
+        ${mExp>0?`<div style="display:flex;align-items:center;gap:10px">
+          <div style="width:3px;height:36px;border-radius:2px;background:#f87171;flex-shrink:0"></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Expenses</div>
+          <div style="font-family:var(--num);font-size:18px;font-weight:700;color:#f87171">${fmt(mExp)}</div></div></div>`:''}
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:11px;font-weight:600;color:var(--text3)">${mSav>=0?'💰 Saved':'🔴 Overspent'}</div>
+          <div style="font-family:var(--num);font-size:15px;font-weight:700;color:${savColor}">${savLabel}</div>
+        </div>
+      </div>
+    </div>`;
+    drawDonut('donut-overview-ring', slices, fmt(Math.abs(mSav)).replace('₹',''), mSav>=0?'saved':'over');
+  })();
+
+  /* ── SECTION 2: Spending by Category ── */
+  (function(){
+    const el=document.getElementById('ins-cat-donut'); if(!el) return;
+    const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
+    const total=curExp.reduce((s,t)=>s+t.amount,0);
+    if(!total){el.innerHTML='<div class="ins-empty">No expenses this month.</div>';return;}
+    const catMap={};
+    curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+    const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+    const top5=sorted.slice(0,5);
+    const otherAmt=sorted.slice(5).reduce((s,[,v])=>s+v,0);
+    const slices=top5.map(([,val],i)=>({val,color:COLORS[i]}));
+    if(otherAmt>0) slices.push({val:otherAmt,color:'var(--surface4)'});
+    const legend=[...top5.map(([cat,amt],i)=>({name:getEmoji(cat)+' '+getCatName(cat),amt,color:COLORS[i]})),
+      ...(otherAmt>0?[{name:'Other',amt:otherAmt,color:'var(--surface4)'}]:[])
+    ].map(item=>{
+      const pct=Math.round((item.amt/total)*100);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${item.color};flex-shrink:0"></div>
+        <div style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-right:4px">${pct}%</div>
+        <div style="font-family:var(--num);font-size:12px;font-weight:600;color:var(--text)">${fmt(item.amt)}</div>
+      </div>`;
+    }).join('');
+    el.innerHTML=`<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div id="donut-cats-ring" style="flex-shrink:0"></div>
+      <div style="flex:1;min-width:140px">${legend}</div>
+    </div>`;
+    drawDonut('donut-cats-ring', slices, fmt(total).replace('₹',''), 'this month');
+  })();
+
+  /* ── SECTION 4: Top 5 Categories ── */
+  (function(){
+    const el=document.getElementById('ins-top5'); if(!el) return;
+    const curExp=txns.filter(t=>t.type==='expense'&&t.date.startsWith(ym));
+    const catMap={};
+    curExp.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+    const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    if(!sorted.length){el.innerHTML='<div class="ins-empty">No expenses this month.</div>';return;}
+    const max=sorted[0][1];
+    const total=sorted.reduce((s,[,v])=>s+v,0);
+    el.innerHTML=sorted.map(([cat,amt],i)=>{
+      const pct=Math.round((amt/max)*100);
+      const totalPct=Math.round((amt/total)*100);
+      const color=COLORS[i%COLORS.length];
+      return `<div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="width:6px;height:6px;border-radius:50%;background:${color}"></div>
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${getEmoji(cat)} ${getCatName(cat)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:10px;color:var(--text3);font-weight:600">${totalPct}%</div>
+            <div style="font-family:var(--num);font-size:13px;font-weight:700;color:${color}">${fmt(amt)}</div>
+          </div>
+        </div>
+        <div style="background:var(--surface3);border-radius:100px;height:7px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:100px;box-shadow:0 1px 6px ${color}44;transition:width .5s ease"></div>
+        </div>
+      </div>`;
+    }).join('');
+  })();
+
+  /* ── SECTION 5: Income vs Expense side by side (last 6 months) ── */
+  (function(){
+    const el=document.getElementById('ins-inc-exp'); if(!el) return;
+    const months=getLast6();
+    const data=months.map(m=>({
+      label:m.label,
+      inc:txns.filter(t=>t.type==='income'&&t.date.startsWith(m.ym)).reduce((s,t)=>s+t.amount,0),
+      exp:txns.filter(t=>t.type==='expense'&&t.date.startsWith(m.ym)).reduce((s,t)=>s+t.amount,0),
+      isThis:m.isThis
+    }));
+    const max=Math.max(...data.map(d=>Math.max(d.inc,d.exp)),1);
+    if(data.every(d=>d.inc===0&&d.exp===0)){el.innerHTML='<div class="ins-empty">Not enough data yet.</div>';return;}
+    const maxH=120;
+    const bars=data.map(d=>{
+      const incH=Math.max(Math.round((d.inc/max)*maxH),d.inc>0?5:0);
+      const expH=Math.max(Math.round((d.exp/max)*maxH),d.exp>0?5:0);
+      const op=d.isThis?'1':'0.55';
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="height:${maxH}px;display:flex;align-items:flex-end;gap:3px;width:100%">
+          <div style="flex:1;height:${incH}px;background:#4ade80;border-radius:4px 4px 2px 2px;opacity:${op}${d.isThis?';box-shadow:0 2px 10px rgba(74,222,128,0.3)':''}"></div>
+          <div style="flex:1;height:${expH}px;background:#f87171;border-radius:4px 4px 2px 2px;opacity:${op}${d.isThis?';box-shadow:0 2px 10px rgba(248,113,113,0.3)':''}"></div>
+        </div>
+        <div style="font-size:10px;font-weight:600;color:${d.isThis?'var(--accent)':'var(--text3)'}">${d.label}</div>
+        <div style="display:flex;flex-direction:column;gap:1px;align-items:center;margin-top:2px">
+          <div style="font-size:8px;color:#4ade80;font-family:var(--num);font-weight:600;opacity:${d.isThis?1:0.7}">${d.inc>0?fmt(d.inc):''}</div>
+          <div style="font-size:8px;color:#f87171;font-family:var(--num);font-weight:600;opacity:${d.isThis?1:0.7}">${d.exp>0?fmt(d.exp):''}</div>
+        </div>
+      </div>`;
+    }).join('');
+    el.innerHTML=`
+      <div style="display:flex;gap:16px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--text2)"><div style="width:10px;height:10px;border-radius:3px;background:#4ade80"></div>Income</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--text2)"><div style="width:10px;height:10px;border-radius:3px;background:#f87171"></div>Expenses</div>
+        <div style="font-size:10px;color:var(--text3);margin-left:auto">current month = bright</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">${bars}</div>`;
+  })();
 }
 
 /* ============================================================
